@@ -120,21 +120,42 @@ def get_flow_viz(flow):
     return rgb
 
 def get_motion_mask(flow_mag, motion_thresh=1, kernel=np.ones((7,7))):
-    """ Obtains Detection Mask from Optical Flow Magnitude
-        Inputs:
-            flow_mag (array) Optical Flow magnitude
-            motion_thresh - thresold to determine motion
-            kernel - kernal for Morphological Operations
-        Outputs:
-            motion_mask - Binray Motion Mask
-        """
-    motion_mask = np.uint8(flow_mag > motion_thresh)*255
+    """
+    Generates a binary motion mask from the optical flow magnitude,
+    highlighting areas of significant motion.
 
+    Parameters:
+    - flow_mag: An array representing the magnitude of optical flow between two frames,
+        indicating motion intensity.
+    - motion_thresh: A threshold value to determine significant motion.
+        Pixels with flow magnitude above this value are considered in motion.
+    - kernel: A matrix used for morphological operations, defining the neighborhood size
+        and shape for these operations.
+
+    Returns:
+    - motion_mask: A binary image (mask) where pixels in motion are white (255)
+        and static pixels are black (0).
+    """
+    # Create an initial binary mask by thresholding the flow magnitude.
+    # Pixels with a magnitude greater than motion_thresh are set to 1, otherwise to 0.
+    # This binary mask is then converted to an 8-bit format (0 or 255).
+    motion_mask = np.uint8(flow_mag > motion_thresh) * 255
+
+    # Apply erosion to reduce noise by removing small white regions in the mask.
     motion_mask = cv2.erode(motion_mask, kernel, iterations=1)
+
+    # Apply opening (erosion followed by dilation) to remove small objects or noise
+    #from the foreground.
     motion_mask = cv2.morphologyEx(motion_mask, cv2.MORPH_OPEN, kernel, iterations=1)
+
+    # Apply closing (dilation followed by erosion) to fill in small holes
+    # and gaps in white regions,
+    # helping to create continuous areas of motion.
     motion_mask = cv2.morphologyEx(motion_mask, cv2.MORPH_CLOSE, kernel, iterations=3)
     
+    # Return the refined motion mask, where significant motion areas are highlighted.
     return motion_mask
+    
 
 #frames_dir = "data/cyberzoo_poles_panels"
 frames_dir = "Data_gitignore/AE4317_2019_datasets/cyberzoo_poles_panels"
@@ -163,33 +184,30 @@ for j in os.listdir(frames_dir):
             flow = compute_flow(frame1_filtered, frame2_filtered,
                                 pyr_scale=0.75, levels=3, winsize=5,
                                 iterations=3, poly_n=10, poly_sigma=1.2, flags=0)
+            
+            # STEP 4: optical flow visualization -  transforming the flow data into a human-readable form where motion directions and magnitudes are represented by colors.
+            #rgb = get_flow_viz(flow)
 
-            # Contours
+            # STEP 5: separte the flow into magnitude and direction
+            mag, ang = cv2.cartToPolar(flow[..., 0], flow[..., 1])
 
+            # STEP 6: get the motion mask
+            # get variable motion thresh based on prior knowledge of camera position
+            motion_thresh = np.linspace(0.1, 1, mag.shape[0]).reshape(-1, 1)
+            # get motion mask
+            mask = get_motion_mask(mag, motion_thresh=motion_thresh)
+            mask_rgb = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+
+            # STEP 7: draw contours
             gray = cv2.cvtColor(frame2_bgr, cv2.COLOR_BGR2GRAY)
             blurred = cv2.GaussianBlur(gray, (5, 5), 0)
             thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
             contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             contour_image = frame2_bgr.copy()
-
-            # separate into magntiude and angle
-            mag, ang = cv2.cartToPolar(flow[..., 0], flow[..., 1])
-
-            # get optical flow visualization
-            rgb = get_flow_viz(flow)
-
-            # get variable motion thresh based on prior knowledge of camera position
-            motion_thresh = np.linspace(0.1, 1, mag.shape[0]).reshape(-1, 1)
-            
-            # get motion mask
-            mask = get_motion_mask(mag, motion_thresh=motion_thresh)
-            mask_rgb = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
-
             cv2.drawContours(mask_rgb, contours, -1, (0, 255, 0), 2)
-
             frame3 = cv2.Canny(frame2_bgr, 80, 150)
 
-            # display
+            # STEP8 : display
             stacked_frames = np.vstack((frame2_bgr, mask_rgb))
             cv2.imshow('Frames with Optical Flow', stacked_frames)
             cv2.imshow('Contours', frame3)
