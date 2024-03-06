@@ -254,7 +254,6 @@ for j in os.listdir(frames_dir):
         frame_files = sorted(os.listdir(folder))
         for i in range(0, len(frame_files)-1):
             #  STEP 1: read & rotate the frames
-            
             frame1_bgr = cv2.imread(os.path.join(folder, frame_files[i]))
             frame1_bgr = cv2.rotate(frame1_bgr, cv2.ROTATE_90_COUNTERCLOCKWISE)
             frame2_bgr = cv2.imread(os.path.join(folder, frame_files[i+1]))
