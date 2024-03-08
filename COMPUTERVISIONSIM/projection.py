@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 class Camera:
     def __init__(self):
@@ -113,15 +114,54 @@ def project_point(camera, point_3d):
 
     return point_image_x, point_image_y
 
+def get_target_from_orientation(pitch, yaw):
+    # Convert degrees to radians for trigonometric functions
+    pitch_rad = np.radians(pitch)
+    yaw_rad = np.radians(yaw)
+
+    # Assuming the drone's camera is fixed and always looks straight out from the drone,
+    # Calculate the direction vector the camera is pointing in based on pitch and yaw
+    x = np.cos(pitch_rad) * np.sin(yaw_rad)
+    y = np.sin(pitch_rad)
+    z = np.cos(pitch_rad) * np.cos(yaw_rad)
+
+    # This direction vector points from the drone's position to where the camera is looking
+    direction = np.array([x, y, z])
+
+    return direction
+
 # Example usage:
 camera = Camera()
-# Set camera parameters based on drone's state
-camera.set_position(np.array([10, 10, 10]))  # Example position
-camera.set_target(np.array([0, 0, 0]))  # Example target
-camera.set_viewport(0, 0, 1920, 1080)  # Example viewport dimensions
 
-point_3d = np.array([5, 5, 0])  # Example 3D point
+# Read the CSV file into a DataFrame
+file_path = "Data_gitignore/AE4317_2019_datasets/cyberzoo_poles_panels/20190121-140303.csv"
+df = pd.read_csv(file_path)
 
-# Project the 3D point onto the 2D image plane
-point_2d = project_point(camera, point_3d)
-print(f"Projected 2D point: {point_2d}")
+# Convert the DataFrame into a dictionary of arrays
+data = df.to_dict('list')
+
+# Now data is a dictionary where the keys are the column names and the values are lists of column values
+
+time_array = data['time']
+x_array = data['pos_x']
+y_array = data['pos_y']
+z_array = -np.array(data['pos_z'])
+pitch_array = data['att_theta']
+yaw_array = data['att_psi']
+
+for t in range(len(time_array)):
+    # Set camera parameters based on drone's state
+    camera.set_position(np.array([x_array[t], y_array[t], z_array[t]]))  # Example position
+    pitch = pitch_array[t]
+    yaw = yaw_array[t]
+    target = get_target_from_orientation(pitch, yaw)
+
+    camera.set_target(target)  # Camera's target
+
+    camera.set_viewport(0, 0, 1920, 1080)  # Example viewport dimensions
+
+    point_3d = np.array([5, 5, 0])  # Example 3D point
+
+    # Project the 3D point onto the 2D image plane
+    point_2d = project_point(camera, point_3d)
+    print(f"Projected 2D point: {point_2d}")
