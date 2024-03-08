@@ -26,6 +26,16 @@ class Camera:
         
         self.D = np.array([[-0.32043809,  0.27653614, -0.06730844, -0.04503392, -2.50539621]])
 
+    def update_state_vector(self, state_vector, index):
+        state_vector.update_state_with_index(index)
+        self.x_pos = state_vector.x_pos
+        self.y_pos = state_vector.y_pos
+        self.z_pos = state_vector.z_pos
+        self.theta = state_vector.theta
+        self.psi = state_vector.psi
+        self.phi = state_vector.phi
+        return None
+
     def update_camera_rotation_matrix(self):
             roll = self.phi
             pitch = self.theta
@@ -46,8 +56,6 @@ class Camera:
             R = np.dot(Rz, np.dot(Ry, Rx))
             return R
         
-        
-    
     def update_rotation_vector(self):
         R = self.update_camera_rotation_matrix()
         rvec, _ = cv2.Rodrigues(R)
@@ -81,6 +89,13 @@ class StateVector:
         self.psi_array = []
         self.phi_array = []
         self.update_state_arrays(file_path)
+
+        self.x_pos = self.x_pos_array[0]
+        self.y_pos = self.y_pos_array[0]
+        self.z_pos = self.z_pos_array[0]
+        self.theta = self.theta_array[0]
+        self.psi = self.psi_array[0]
+        self.phi = self.phi_array[0]
 
     def update_state_arrays(self, file_path):
         df = pd.read_csv(file_path)
@@ -151,6 +166,9 @@ class StateVector:
 
     def number_of_rows(self):
         return len(self.time_array)
+    
+    def return_points3d(self, index):
+        return [self.x_pos_array[index], self.y_pos_array[index], self.z_pos_array[index]]
 
 
 class CyberZooStructure:
@@ -257,6 +275,9 @@ class CyberZooStructure:
         ax.set_ylabel('Y')
         ax.set_zlabel('Z')
         plt.show()
+
+    def return_points3d(self):
+        return [self.points3d_A, self.points3d_B, self.points3d_C, self.points3d_D]
 
 
 class VideoFeed:
