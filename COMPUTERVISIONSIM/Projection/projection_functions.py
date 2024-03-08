@@ -1,0 +1,292 @@
+'''
+A class for state: x_pos, y_pos, z_pos, x_rot, y_rot, z_rot
+where it is the position and rotation of the camera
+Has attributes including the camera matrix, the projection matrix, and the view matrix
+'''
+
+import numpy as np
+import cv2
+import pandas as pd
+import matplotlib.pyplot as plt
+import glob
+
+class Camera:
+    def __init__(self, x_pos, y_pos, z_pos, theta, psi, phi):
+        self.x_pos = x_pos
+        self.y_pos = y_pos
+        self.z_pos = z_pos
+        self.theta = theta
+        self.psi = psi
+        self.phi = phi
+
+        self.K = np.array([[589.98363697,   0,         117.18359156],
+                           [  0,         600.54137529, 261.48275908],
+                           [  0,           0,           1        ]])
+        
+        self.D = np.array([[-0.32043809,  0.27653614, -0.06730844, -0.04503392, -2.50539621]])
+
+    def update_camera_rotation_matrix(self):
+            roll = self.phi
+            pitch = self.theta
+            yaw = self.psi
+            Rx = np.array([[1, 0, 0],
+                   [0, np.cos(roll), -np.sin(roll)],
+                   [0, np.sin(roll), np.cos(roll)]])
+
+            Ry = np.array([[np.cos(pitch), 0, np.sin(pitch)],
+                        [0, 1, 0],
+                        [-np.sin(pitch), 0, np.cos(pitch)]])
+
+            Rz = np.array([[np.cos(yaw), -np.sin(yaw), 0],
+                        [np.sin(yaw), np.cos(yaw), 0],
+                        [0, 0, 1]])
+
+            # The order of multiplication depends on the convention used. This uses ZYX (yaw-pitch-roll).
+            R = np.dot(Rz, np.dot(Ry, Rx))
+            return R
+        
+        
+    
+    def update_rotation_vector(self):
+        R = self.update_camera_rotation_matrix()
+        rvec, _ = cv2.Rodrigues(R)
+        return rvec
+
+    def update_camera_translation_vector(self):
+        T = np.array([[self.x_pos], [self.y_pos], [self.z_pos]])
+        return T
+
+
+    '''
+    It is a fisheye camera, so the projection is different
+    make a method which takes a 3D point and returns the 2D point
+    '''
+    def project_3D_to_2D(self, points_3D):
+        rvec = self.update_rotation_vector()
+        T = self.update_camera_translation_vector()
+        D_truncated = self.D[:, :4]
+        points_2D, _ = cv2.fisheye.projectPoints(points_3D, rvec, T, self.K, D_truncated)
+        points_2D = points_2D.reshape(-1, 2)
+        return points_2D
+        
+
+class StateVector:
+    def __init__(self, file_path):
+        self.time_arry = []
+        self.x_pos_array = []
+        self.y_pos_array = []
+        self.z_pos_array = []
+        self.theta_array = []
+        self.psi_array = []
+        self.phi_array = []
+        self.update_state_arrays(file_path)
+
+    def update_state_arrays(self, file_path):
+        df = pd.read_csv(file_path)
+
+        # Convert the DataFrame into a dictionary of arrays
+        data = df.to_dict('list')
+
+        # Now data is a dictionary where the keys are the column names and the values are lists of column values
+        self.time_array = data['time']
+        self.x_pos_array = data['pos_x']
+        self.y_pos_array = data['pos_y']
+        self.z_pos_array = data['pos_z']
+        self.theta_array = data['att_theta']
+        self.psi_array = data['att_psi']
+        self.phi_array = data['att_phi']
+
+        return None
+
+    def update_state_with_time(self, time):
+        index = self.time_array.index(time)
+        self.x_pos = self.x_pos_array[index]
+        self.y_pos = self.y_pos_array[index]
+        self.z_pos = self.z_pos_array[index]
+        self.theta = self.theta_array[index]
+        self.psi = self.psi_array[index]
+        self.phi = self.phi_array[index]
+        return None
+
+    def update_state_with_index(self, index):
+        self.x_pos = self.x_pos_array[index]
+        self.y_pos = self.y_pos_array[index]
+        self.z_pos = self.z_pos_array[index]
+        self.theta = self.theta_array[index]
+        self.psi = self.psi_array[index]
+        self.phi = self.phi_array[index]
+        return None
+    
+    def plot_xyz(self):
+        fig, axs = plt.subplots(3)
+        fig.suptitle('Position')
+        axs[0].plot(self.time_array, self.x_pos_array)
+        axs[0].set_title('X Position')
+        axs[1].plot(self.time_array, self.y_pos_array)
+        axs[1].set_title('Y Position')
+        axs[2].plot(self.time_array, self.z_pos_array)
+        axs[2].set_title('Z Position')
+        plt.show()
+
+    def plot_xyz_3d(self):
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.plot(self.x_pos_array, self.y_pos_array, self.z_pos_array)
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+        plt.show()
+    
+    def plot_angles(self):
+        fig, axs = plt.subplots(3)
+        fig.suptitle('Angles')
+        axs[0].plot(self.time_array, self.theta_array)
+        axs[0].set_title('Theta')
+        axs[1].plot(self.time_array, self.psi_array)
+        axs[1].set_title('Psi')
+        axs[2].plot(self.time_array, self.phi_array)
+        axs[2].set_title('Phi')
+        plt.show()
+
+    def number_of_rows(self):
+        return len(self.time_array)
+
+
+class CyberZooStructure:
+    def __init__(self, zmin):
+        self.cyberzoo_green_width = 7
+        self.cyberzoo_green_length = 7
+        self.z_min = zmin
+        self.corner_coordinates = {
+            'A': {'x' : self.cyberzoo_green_width/2,
+                'y' : self.cyberzoo_green_length/2,
+                'z' : self.z_min},
+            'B': {'x' : -self.cyberzoo_green_width/2,
+                'y' : self.cyberzoo_green_length/2,
+                'z' : self.z_min},
+            'C': {'x' : -self.cyberzoo_green_width/2,
+                'y' : -self.cyberzoo_green_length/2,
+                'z' : self.z_min},
+            'D': {'x' : self.cyberzoo_green_width/2,
+                'y' : -self.cyberzoo_green_length/2,
+                'z' : self.z_min}
+        }
+        self.points3d_A = [self.corner_coordinates['A']['x'], self.corner_coordinates['A']['y'], self.corner_coordinates['A']['z']]
+        self.points3d_B = [self.corner_coordinates['B']['x'], self.corner_coordinates['B']['y'], self.corner_coordinates['B']['z']]
+        self.points3d_C = [self.corner_coordinates['C']['x'], self.corner_coordinates['C']['y'], self.corner_coordinates['C']['z']]
+        self.points3d_D = [self.corner_coordinates['D']['x'], self.corner_coordinates['D']['y'], self.corner_coordinates['D']['z']]
+
+        self.wall_height = 4 #m
+        self.corner_upper_coordinates = {
+            'A': {'x' : self.cyberzoo_green_width/2,
+                'y' : self.cyberzoo_green_length/2,
+                'z' : self.z_min + self.wall_height},
+            'B': {'x' : -self.cyberzoo_green_width/2,
+                'y' : self.cyberzoo_green_length/2,
+                'z' : self.z_min + self.wall_height},
+            'C': {'x' : -self.cyberzoo_green_width/2,
+                'y' : -self.cyberzoo_green_length/2,
+                'z' : self.z_min + self.wall_height},
+            'D': {'x' : self.cyberzoo_green_width/2,
+                'y' : -self.cyberzoo_green_length/2,
+                'z' : self.z_min + self.wall_height}
+        }
+    
+    def plot_cyberzoo(self):
+        #FLOOR
+        # Extract the corner coordinates
+        corners = self.corner_coordinates
+        # Create arrays for x, y, and z coordinates
+        x = np.array([corners[corner]['x'] for corner in corners])
+        y = np.array([corners[corner]['y'] for corner in corners])
+        z = np.array([corners[corner]['z'] for corner in corners])
+        # Create a meshgrid for the surface
+        X, Y = np.meshgrid(x, y)
+        Z = np.full_like(X, self.z_min)
+
+        # Left wall : A, D, A_upper, D_upper
+        corners_upper = self.corner_upper_coordinates
+        x_left_wall = np.array([corners['A']['x'], corners['D']['x'], corners_upper['A']['x'], corners_upper['D']['x']])
+        y_left_wall = np.array([corners['A']['y'], corners['D']['y'], corners_upper['A']['y'], corners_upper['D']['y']])
+        z_left_wall = np.array([corners['A']['z'], corners['D']['z'], corners_upper['A']['z'], corners_upper['D']['z']])
+        X_left, Y_left = np.meshgrid(x_left_wall, y_left_wall)
+        Z_left = np.full_like(X_left, z_left_wall)
+
+        # Right wall : B, C, B_upper, C_upper
+        x_right_wall = np.array([corners['B']['x'], corners['C']['x'], corners_upper['B']['x'], corners_upper['C']['x']])
+        y_right_wall = np.array([corners['B']['y'], corners['C']['y'], corners_upper['B']['y'], corners_upper['C']['y']])
+        z_right_wall = np.array([corners['B']['z'], corners['C']['z'], corners_upper['B']['z'], corners_upper['C']['z']])
+        X_right, Y_right = np.meshgrid(x_right_wall, y_right_wall)
+        Z_right = np.full_like(X_right, z_right_wall)
+
+        # Back wall : C, D, C_upper, D_upper
+        x_back_wall = np.linspace(corners['C']['x'], corners['D']['x'], num=100)
+        y_back_wall = np.linspace(corners['C']['y'], corners['D']['y'], num=100)
+        z_back_wall = np.linspace(corners['C']['z'], corners_upper['C']['z'], num=100)
+        X_back, Z_back = np.meshgrid(x_back_wall, z_back_wall)
+        Y_back = np.full_like(X_back, y_back_wall.mean())
+
+        # Front wall : A, B, A_upper, B_upper
+        x_front_wall = np.linspace(corners['A']['x'], corners['B']['x'], num=100)
+        y_front_wall = np.linspace(corners['A']['y'], corners['B']['y'], num=100)
+        z_front_wall = np.linspace(corners['A']['z'], corners_upper['A']['z'], num=100)
+        X_front, Z_front = np.meshgrid(x_front_wall, z_front_wall)
+        Y_front = np.full_like(X_front, y_front_wall.mean())
+
+        # Plot the data
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+
+        # Plot a square for the coordinates of the square and fill it in
+        ax.plot_surface(X, Y, Z, color='b')
+
+        # Plot the left wall
+        ax.plot_surface(X_left, Y_left, Z_left, color='r')
+
+        # Plot the right wall
+        ax.plot_surface(X_right, Y_right, Z_right, color='c')
+
+        # Plot the back wall
+        ax.plot_surface(X_back, Y_back, Z_back, color='g')
+
+        # Plot the front wall
+        ax.plot_surface(X_front, Y_front, Z_front, color='y')
+
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+        plt.show()
+
+
+class VideoFeed:
+    def __init__(self, frames_dir):
+        self.frames_dir = frames_dir
+        self.images = glob.glob(frames_dir + '/*.jpg')
+        self.image_current = cv2.imread(self.images[0])
+        
+    def image_read(self, index):
+        img = cv2.imread(self.images[index])
+        self.image_current = img
+        return img
+    
+    def image_rotate_90_counter(self, all_images=True):
+        if all_images:
+            for i, img_path in enumerate(self.images):
+                img = cv2.imread(img_path)  # Read the image from its file path
+                rotated_img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)  # Rotate the image data
+                self.images[i] = rotated_img  # Update the list with rotated image data
+        else:
+            self.image_current = cv2.rotate(self.image_current, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+    
+    def image_show(self, waitKeyvalue = 100):
+        cv2.imshow('Image', self.image_current)
+        cv2.waitKey(waitKeyvalue)
+        return None
+    
+    def draw_circle(self, x_coordinate, y_coordinate, radius=100, color=(0, 255, 0), thickness=-1):
+        cv2.circle(self.image_current, (int(x_coordinate), int(y_coordinate)), radius, color, thickness)
+        return None
+    
+    def number_of_images(self):
+        return len(self.images)

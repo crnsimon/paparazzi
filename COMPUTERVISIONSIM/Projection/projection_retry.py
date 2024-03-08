@@ -93,27 +93,7 @@ z_array = -np.array(data['pos_z'])
 pitch_array = data['att_theta']
 yaw_array = data['att_psi']
 roll_array = data['att_phi']
-# Plot x y z roll pitch yaw
-plt.figure()
-plt.plot(time_array, x_array, label='x')
-plt.plot(time_array, y_array, label='y')
-plt.plot(time_array, z_array, label='z')
-plt.xlabel('Time (s)')
-plt.ylabel('Position (m)')
-plt.title('Vehicle Position')
-plt.legend()
-plt.show()
 
-# Plot x y z roll pitch yaw
-plt.figure()
-plt.plot(time_array, roll_array, label='roll')
-plt.plot(time_array, pitch_array, label='pitch')
-plt.plot(time_array, yaw_array, label='yaw')
-plt.xlabel('Time (s)')
-plt.ylabel('Orientation (rad)')
-plt.title('Vehicle Orientation')
-plt.legend()
-plt.show()
 
 
 K = np.array([[589.98363697,   0,         117.18359156],
@@ -189,6 +169,7 @@ for i in range(len(x_array)):
     cv2.waitKey(1)
 
 
+
 # Plot points2d_a_x & points2d_a_y 3D
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
@@ -203,3 +184,4 @@ image = cv2.imread(images[0])
 height, width, _ = image.shape
 print("Width: ", width)
 print("Height: ", height)
+'
