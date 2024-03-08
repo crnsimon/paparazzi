@@ -1,6 +1,8 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+import cv2
 
 # Read the CSV file into a DataFrame
 file_path = "Data_gitignore/AE4317_2019_datasets/cyberzoo_poles_panels/20190121-140303.csv"
@@ -123,3 +125,25 @@ ax.set_xlabel('X')
 ax.set_ylabel('Y')
 ax.set_zlabel('Z')
 plt.show()
+
+
+
+frames_dir = "Data_gitignore/AE4317_2019_datasets/cyberzoo_poles_panels"
+#frames_dir = "Data_gitignore/AE4317_2019_datasets/cyberzoo_poles_panels_mats_bottomcam"
+
+for j in os.listdir(frames_dir):
+    folder = os.path.join(frames_dir, j)
+
+    if os.path.isdir(folder):
+        # Get a list of image file names sorted in ascending order
+        frame_files = sorted(os.listdir(folder))
+        for i in range(0, len(frame_files)-1):
+            #  STEP 1: read & rotate the frames
+            # Read the image
+            img = cv2.imread(os.path.join(folder, frame_files[i]))
+
+            # Rotate the image
+            img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+
+            cv2.imshow('image', img)
+            
