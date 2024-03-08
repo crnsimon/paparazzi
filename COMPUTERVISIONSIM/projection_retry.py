@@ -1,11 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 import cv2
-
-import cv2
-import numpy as np
 
 def project_points_fisheye_truncated_D(points_3D, K, D, R, T):
     """
@@ -90,7 +86,6 @@ df = pd.read_csv(file_path)
 data = df.to_dict('list')
 
 # Now data is a dictionary where the keys are the column names and the values are lists of column values
-
 time_array = data['time']
 x_array = data['pos_x']
 y_array = data['pos_y']
@@ -98,24 +93,28 @@ z_array = -np.array(data['pos_z'])
 pitch_array = data['att_theta']
 yaw_array = data['att_psi']
 roll_array = data['att_phi']
-'''
-# Generate the camera matrix
-mtf9f002_zoom = 1
-mtf9f002_offset_x = 0
-mtf9f002_offset_y = 0
-mtf9f002_output_width = 1920 # Could be different
-mtf9f002_output_height = 1080 # Could be different
+# Plot x y z roll pitch yaw
+plt.figure()
+plt.plot(time_array, x_array, label='x')
+plt.plot(time_array, y_array, label='y')
+plt.plot(time_array, z_array, label='z')
+plt.xlabel('Time (s)')
+plt.ylabel('Position (m)')
+plt.title('Vehicle Position')
+plt.legend()
+plt.show()
 
-mtf9f002_focal_x = (mtf9f002_zoom * mtf9f002_output_width / 2)
-mtf9f002_focal_y = (mtf9f002_zoom * mtf9f002_output_height / 2)
-mtf9f002_center_x = (mtf9f002_output_width * (.5 - mtf9f002_zoom * mtf9f002_offset_x))
-mtf9f002_center_y = (mtf9f002_output_height * (.5 - mtf9f002_zoom * mtf9f002_offset_y))
+# Plot x y z roll pitch yaw
+plt.figure()
+plt.plot(time_array, roll_array, label='roll')
+plt.plot(time_array, pitch_array, label='pitch')
+plt.plot(time_array, yaw_array, label='yaw')
+plt.xlabel('Time (s)')
+plt.ylabel('Orientation (rad)')
+plt.title('Vehicle Orientation')
+plt.legend()
+plt.show()
 
-K = np.array([[mtf9f002_focal_x, 0, mtf9f002_center_x],
-                  [0, mtf9f002_focal_y, mtf9f002_center_y],
-                  [0, 0, 1]])
-D = np.array([1.25, 0, 0, 0, 0])
-'''
 
 K = np.array([[589.98363697,   0,         117.18359156],
  [  0,         600.54137529, 261.48275908],
@@ -147,11 +146,18 @@ points3d_B = [cyberzoo_shapes['corner_coordinates']['B']['x'], cyberzoo_shapes['
 points3d_C = [cyberzoo_shapes['corner_coordinates']['C']['x'], cyberzoo_shapes['corner_coordinates']['C']['y'], cyberzoo_shapes['corner_coordinates']['C']['z']]
 points3d_D = [cyberzoo_shapes['corner_coordinates']['D']['x'], cyberzoo_shapes['corner_coordinates']['D']['y'], cyberzoo_shapes['corner_coordinates']['D']['z']]
 
-
-
 # Generate R and T for each point in the arrays
 R_array = []
 T_array = []
+
+import glob
+
+frames_dir = "Data_gitignore/AE4317_2019_datasets/cyberzoo_poles_panels/20190121-140205"
+# Get a list of all jpg images in the frames_dir directory
+images = glob.glob(frames_dir + '/*.jpg')
+points2d_a_x = []
+points2d_a_y = []
+points2d_b_x = []
 for i in range(len(x_array)):
     R, T = find_R_and_T((x_array[i], y_array[i], z_array[i]), (roll_array[i], pitch_array[i], yaw_array[i]))
     R_array.append(R)
@@ -161,3 +167,39 @@ for i in range(len(x_array)):
     points2d_b = project_points_fisheye_truncated_D(np.array(points3d_B), K, D, R, T)
     points2d_c = project_points_fisheye_truncated_D(np.array(points3d_C), K, D, R, T)
     points2d_d = project_points_fisheye_truncated_D(np.array(points3d_D), K, D, R, T)
+    points2d_a_x.append(points2d_a[0][0])
+    points2d_a_y.append(points2d_a[0][1])
+
+    # Read the image
+    img = cv2.imread(images[i])
+
+    # Get the corresponding point
+    x_coordinate = points2d_a[0][0]
+    y_coordinate = points2d_a[0][1]
+    print(x_coordinate)
+
+    # Rotate image 90 degrees counter-clockwise
+    img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+    # Draw a circle at the point
+    cv2.circle(img, (int(x_coordinate), int(y_coordinate)), radius=100, color=(0, 255, 0), thickness=-1)
+
+    # Display the image
+    cv2.imshow('Image', img)
+    cv2.waitKey(1)
+
+
+# Plot points2d_a_x & points2d_a_y 3D
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.plot(points2d_a_x, points2d_a_y, time_array)
+ax.set_xlabel('X')
+ax.set_ylabel('Y')
+ax.set_zlabel('Z')
+plt.show()
+
+# Find width and height of the image
+image = cv2.imread(images[0])
+height, width, _ = image.shape
+print("Width: ", width)
+print("Height: ", height)
