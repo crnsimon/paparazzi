@@ -149,6 +149,37 @@ z_array = -np.array(data['pos_z'])
 pitch_array = data['att_theta']
 yaw_array = data['att_psi']
 
+
+# FLOOR
+# Cyberzoo dimensions
+cyberzoo_shapes = {}
+cyberzoo_shapes['cyberzoo_green_width'] = 7 #m
+cyberzoo_shapes['cyberzoo_green_length'] = 7 #m
+cyberzoo_shapes['z_min'] = 0#m - set to original value
+# Cyberzoo corner coordinates
+cyberzoo_shapes['corner_coordinates'] = {
+    'A': {'x' : cyberzoo_shapes['cyberzoo_green_width']/2,
+          'y' : cyberzoo_shapes['cyberzoo_green_length']/2,
+          'z' : cyberzoo_shapes['z_min']},
+    'B': {'x' : -cyberzoo_shapes['cyberzoo_green_width']/2,
+          'y' : cyberzoo_shapes['cyberzoo_green_length']/2,
+          'z' : cyberzoo_shapes['z_min']},
+    'C': {'x' : -cyberzoo_shapes['cyberzoo_green_width']/2,
+          'y' : -cyberzoo_shapes['cyberzoo_green_length']/2,
+          'z' : cyberzoo_shapes['z_min']},
+    'D': {'x' : cyberzoo_shapes['cyberzoo_green_width']/2,
+          'y' : -cyberzoo_shapes['cyberzoo_green_length']/2,
+          'z' : cyberzoo_shapes['z_min']}
+}
+# Extract the corner coordinates
+corners = cyberzoo_shapes['corner_coordinates']
+# Create arrays for x, y, and z coordinates
+x = np.array([corners[corner]['x'] for corner in corners])
+y = np.array([corners[corner]['y'] for corner in corners])
+z = np.array([corners[corner]['z'] for corner in corners])
+
+
+
 for t in range(len(time_array)):
     # Set camera parameters based on drone's state
     camera.set_position(np.array([x_array[t], y_array[t], z_array[t]]))  # Example position
@@ -159,9 +190,22 @@ for t in range(len(time_array)):
     camera.set_target(target)  # Camera's target
 
     camera.set_viewport(0, 0, 1920, 1080)  # Example viewport dimensions
-
-    point_3d = np.array([5, 5, 0])  # Example 3D point
-
+    
+    point_3d_corner_a = np.array([x[0], y[0], z[0]])  # Example 3D point
     # Project the 3D point onto the 2D image plane
-    point_2d = project_point(camera, point_3d)
-    print(f"Projected 2D point: {point_2d}")
+    point_2d_a = project_point(camera, point_3d_corner_a)
+
+    point_3d_corner_b = np.array([x[1], y[1], z[1]])  # Example 3D point
+    # Project the 3D point onto the 2D image plane
+    point_2d_b = project_point(camera, point_3d_corner_b)
+
+    point_3d_corner_c = np.array([x[2], y[2], z[2]])  # Example 3D point
+    # Project the 3D point onto the 2D image plane
+    point_2d_c = project_point(camera, point_3d_corner_c)
+
+    point_3d_corner_d = np.array([x[3], y[3], z[3]])  # Example 3D point
+    # Project the 3D point onto the 2D image plane
+    point_2d_d = project_point(camera, point_3d_corner_d)
+
+    print(t)
+
