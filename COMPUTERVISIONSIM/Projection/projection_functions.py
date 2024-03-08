@@ -8,6 +8,7 @@ import numpy as np
 import cv2
 import pandas as pd
 import matplotlib.pyplot as plt
+import os
 import glob
 
 class Camera:
@@ -261,16 +262,14 @@ class CyberZooStructure:
 class VideoFeed:
     def __init__(self, frames_dir):
         self.frames_dir = frames_dir
+        self.frame_files = sorted(os.listdir(frames_dir))
         self.images = glob.glob(frames_dir + '/*.jpg')
         self.index = 0
-        self.image_current = cv2.imread(self.images[0])
+        self.image_current = self.image_read(self.index)
 
-    def index_get(self, index):
-        
-        
     def image_read(self, index = 0):
         self.index = index
-        img = cv2.imread(self.images[index])
+        img = cv2.imread(os.path.join(self.frames_dir, self.frame_files[self.index]))
         self.image_current = img
         return img
     
@@ -391,5 +390,49 @@ class OpticalFlow:
         motion_mask = cv2.morphologyEx(motion_mask, cv2.MORPH_CLOSE, kernel, iterations=3)
     
         return motion_mask
-
     
+    def mask_rgb(self, mask):
+        mask_rgb = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+
+    def green_filter(self, mask_rgb, lower_green=np.array([30, 30, 30]), upper_green=np.array([90, 255, 255]), kernel_size=(15,15), canny_thresholds=(100, 200)):
+        # Convert BGR to HSV
+        frame2_bgr = self.frame2
+        hsv = cv2.cvtColor(frame2_bgr, cv2.COLOR_BGR2HSV)
+
+        # Apply CLAHE
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        for i in range(hsv.shape[-1]):
+            hsv[:,:,i] = clahe.apply(hsv[:,:,i])
+
+        # Threshold the HSV image to get only green colors
+        green_mask = cv2.inRange(hsv, lower_green, upper_green)
+
+        # Define a kernel for the morphological operations
+        kernel = np.ones(kernel_size, np.uint8)
+
+        # Apply dilation and erosion to smooth the mask
+        green_mask = cv2.morphologyEx(green_mask, cv2.MORPH_CLOSE, kernel)
+
+        # Invert the mask
+        green_mask_inv = cv2.bitwise_not(green_mask)
+
+        # Bitwise-AND mask and original image (optional, to highlight green areas)
+        result = cv2.bitwise_and(frame2_bgr, frame2_bgr, mask=green_mask_inv)
+
+        # Display the original and result images
+        stack_frames = np.vstack((frame2_bgr, result))
+        cv2.imshow('Green Removed', stack_frames)
+
+        mask_rgb_no_green = cv2.bitwise_and(mask_rgb, mask_rgb, mask=green_mask_inv)
+
+        # Apply edge detection to the green mask
+        edges = cv2.Canny(green_mask, *canny_thresholds)
+
+        # Filter out the wall lines
+        edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
+
+        # Display the edges
+        cv2.imshow('Edges', edges)
+
+        return edges, mask_rgb_no_green
+        
