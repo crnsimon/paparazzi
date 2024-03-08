@@ -262,9 +262,14 @@ class VideoFeed:
     def __init__(self, frames_dir):
         self.frames_dir = frames_dir
         self.images = glob.glob(frames_dir + '/*.jpg')
+        self.index = 0
         self.image_current = cv2.imread(self.images[0])
+
+    def index_get(self, index):
         
-    def image_read(self, index):
+        
+    def image_read(self, index = 0):
+        self.index = index
         img = cv2.imread(self.images[index])
         self.image_current = img
         return img
@@ -290,3 +295,101 @@ class VideoFeed:
     
     def number_of_images(self):
         return len(self.images)
+
+
+    def filter(self, kernel_size = 3, sigma_Gaussian = 5, filter_type = 'Gaussian', 
+                  d  = 9, sigmaColor = 75, sigmaSpace = 75):
+        '''
+        The aim of this function is to convert the frames to greyscale images and apply a Gaussian filter to them.
+
+        https://pyimagesearch.com/2021/04/28/opencv-smoothing-and-blurring/
+
+        inputs:
+        frame_raw: the raw image
+        kernel_size: the size of the kernel for the Gaussian filter, keep it odd: 3, 5, 7
+        sigma_Gaussian: the standard deviation of the Gaussian filter
+
+        outputs:
+        frame_greyscale_filter: the filtered greyscale image
+        '''
+        # Convert the images to grayscale
+        self.image_current = cv2.cvtColor(self.image_current, cv2.COLOR_BGR2GRAY)
+        if filter_type == 'Gaussian':
+            self.image_current = cv2.GaussianBlur(self.image_current, dst=None, ksize=(kernel_size, kernel_size), sigmaX= sigma_Gaussian)
+        elif filter_type == 'Average':
+            self.image_current = cv2.blur(self.image_current, (kernel_size, kernel_size))
+        elif filter_type == 'Median':
+            self.image_current = cv2.medianBlur(self.image_current, kernel_size)
+        elif filter_type == 'Bilateral':
+            self.image_current = cv2.bilateralFilter(self.image_current, d, sigmaColor, sigmaSpace)
+        else:
+            self.image_current = cv2.GaussianBlur(self.image_current, dst=None, ksize=(kernel_size, kernel_size), sigmaX= sigma_Gaussian)
+        return None
+    
+    def resize_frame(self, scale_percent = 50):
+        frame = self.image_current
+        # Calculate the 50 percent of original dimensions
+        width = int(frame.shape[1] * scale_percent / 100)
+
+        # Calculate the 50 percent of original dimensions
+        height = int(frame.shape[0] * scale_percent / 100)
+
+        # dsize
+        dsize = (width, height)
+
+        # resize image
+        frame_resized = cv2.resize(frame, dsize)
+        self.image = frame_resized
+        return None
+    
+
+
+
+class OpticalFlow:
+    def __init__(self, frame1, frame2):
+        self.frame1 = frame1
+        self.frame2 = frame2
+        self.flow = self.compute_flow(frame1, frame2)
+        self.flow_rgb = self.get_flow_viz()
+
+    def compute_flow(frame1, frame2, pyr_scale=0.75, levels=3, winsize=5,
+                    iterations=3, poly_n=10, poly_sigma=1.2, flags=0):
+        
+        flow = cv2.calcOpticalFlowFarneback(frame1, frame2, None,
+                                            pyr_scale=pyr_scale,
+                                            levels=levels,
+                                            winsize=winsize,
+                                            iterations=iterations,
+                                            poly_n=poly_n,
+                                            poly_sigma=poly_sigma,
+                                            flags=flags)
+        return flow
+
+    def get_flow_viz(self):
+        """ Obtains BGR image to Visualize the Optical Flow 
+            """
+        flow = self.flow
+        hsv = np.zeros((flow.shape[0], flow.shape[1], 3), dtype=np.uint8)
+        hsv[..., 1] = 255
+
+        mag, ang = cv2.cartToPolar(flow[..., 0], flow[..., 1])
+        hsv[..., 0] = ang*180/np.pi/2
+        hsv[..., 2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
+        rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
+
+        self.flow_rgb = rgb
+        return None
+    
+    def motion_mask(self, motion_thresh=1, kernel=np.ones((7,7))):
+        flow = self.flow
+        flow_mag, flow_ang = cv2.cartToPolar(flow[..., 0], flow[..., 1])
+        motion_thresh = np.linspace(0.1, 1, flow_mag.shape[0]).reshape(-1, 1)
+        
+        motion_mask = np.uint8(flow_mag > motion_thresh) * 255
+        motion_mask = cv2.erode(motion_mask, kernel, iterations=1)
+        motion_mask = cv2.morphologyEx(motion_mask, cv2.MORPH_OPEN, kernel, iterations=1)
+        motion_mask = cv2.morphologyEx(motion_mask, cv2.MORPH_CLOSE, kernel, iterations=3)
+    
+        return motion_mask
+
+    

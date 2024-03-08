@@ -22,4 +22,17 @@ images = VideoFeed(image_path)
 # Rotate the image
 images.image_rotate_90_counter()
 # Show the image
-images.image_show()
+#images.image_show()
+
+
+# Apply a filter
+images.filter()
+
+
+# Resize the image
+images.resize_frame()
+
+# Optical flow
+frame1 = images.image_read(0)
+frame2 = images.image_read(1)
+flowclass = OpticalFlow(frame1, frame2)
