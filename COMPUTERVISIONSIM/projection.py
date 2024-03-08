@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+import os
+import cv2
 
 class Camera:
     def __init__(self):
@@ -145,7 +147,7 @@ data = df.to_dict('list')
 time_array = data['time']
 x_array = data['pos_x']
 y_array = data['pos_y']
-z_array = -np.array(data['pos_z'])
+z_array = np.array(data['pos_z'])
 pitch_array = data['att_theta']
 yaw_array = data['att_psi']
 
@@ -178,34 +180,54 @@ x = np.array([corners[corner]['x'] for corner in corners])
 y = np.array([corners[corner]['y'] for corner in corners])
 z = np.array([corners[corner]['z'] for corner in corners])
 
+frames_dir = "Data_gitignore/AE4317_2019_datasets/cyberzoo_poles_panels"
+
+for j in os.listdir(frames_dir):
+    folder = os.path.join(frames_dir, j)
+
+    if os.path.isdir(folder):
+        # Get a list of image file names sorted in ascending order
+        frame_files = sorted(os.listdir(folder))
+
+        for t, frame_file in enumerate(frame_files):
+            # Set camera parameters based on drone's state
+            camera.set_position(np.array([x_array[t], y_array[t], z_array[t]]))  # Example position
+            pitch = pitch_array[t]
+            yaw = yaw_array[t]
+            target = get_target_from_orientation(pitch, yaw)
+
+            camera.set_target(target)  # Camera's target
+
+            camera.set_viewport(0, 0, 1920, 1080)  # Example viewport dimensions
+            
+            point_3d_corner_a = np.array([x[0], y[0], z[0]])  # Example 3D point
+            # Project the 3D point onto the 2D image plane
+            point_2d_a = project_point(camera, point_3d_corner_a)
+
+            point_3d_corner_b = np.array([x[1], y[1], z[1]])  # Example 3D point
+            # Project the 3D point onto the 2D image plane
+            point_2d_b = project_point(camera, point_3d_corner_b)
+
+            point_3d_corner_c = np.array([x[2], y[2], z[2]])  # Example 3D point
+            # Project the 3D point onto the 2D image plane
+            point_2d_c = project_point(camera, point_3d_corner_c)
+
+            point_3d_corner_d = np.array([x[3], y[3], z[3]])  # Example 3D point
+            # Project the 3D point onto the 2D image plane
+            point_2d_d = project_point(camera, point_3d_corner_d)
+
+            # Load and display the image via cv
+            frame1_bgr = cv2.imread(os.path.join(folder, frame_files[t]))
+            frame1_bgr = cv2.rotate(frame1_bgr, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+            # Draw the projected points on the image - make circle bigger
+            cv2.circle(frame1_bgr, (int(point_2d_a[0]), int(point_2d_a[1])), 100, (0, 0, 255), -1)
+            cv2.circle(frame1_bgr, (int(point_2d_b[0]), int(point_2d_b[1])), 100, (0, 0, 255), -1)
+            cv2.circle(frame1_bgr, (int(point_2d_c[0]), int(point_2d_c[1])), 100, (0, 0, 255), -1)
+            cv2.circle(frame1_bgr, (int(point_2d_d[0]), int(point_2d_d[1])), 100, (0, 0, 255), -1)
 
 
-for t in range(len(time_array)):
-    # Set camera parameters based on drone's state
-    camera.set_position(np.array([x_array[t], y_array[t], z_array[t]]))  # Example position
-    pitch = pitch_array[t]
-    yaw = yaw_array[t]
-    target = get_target_from_orientation(pitch, yaw)
-
-    camera.set_target(target)  # Camera's target
-
-    camera.set_viewport(0, 0, 1920, 1080)  # Example viewport dimensions
-    
-    point_3d_corner_a = np.array([x[0], y[0], z[0]])  # Example 3D point
-    # Project the 3D point onto the 2D image plane
-    point_2d_a = project_point(camera, point_3d_corner_a)
-
-    point_3d_corner_b = np.array([x[1], y[1], z[1]])  # Example 3D point
-    # Project the 3D point onto the 2D image plane
-    point_2d_b = project_point(camera, point_3d_corner_b)
-
-    point_3d_corner_c = np.array([x[2], y[2], z[2]])  # Example 3D point
-    # Project the 3D point onto the 2D image plane
-    point_2d_c = project_point(camera, point_3d_corner_c)
-
-    point_3d_corner_d = np.array([x[3], y[3], z[3]])  # Example 3D point
-    # Project the 3D point onto the 2D image plane
-    point_2d_d = project_point(camera, point_3d_corner_d)
-
-    print(t)
+            # Display image - slow it down
+            cv2.imshow('Frame', frame1_bgr)
+            cv2.waitKey(1)  # Delay in milliseconds (e.g. 100ms = 0.1s)
 
