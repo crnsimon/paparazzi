@@ -4,30 +4,37 @@ import numpy as np
 import os
 import cv2
 
-def project_points_fisheye(points_3D, K, D, R, T):
+import cv2
+import numpy as np
+
+def project_points_fisheye_truncated_D(points_3D, K, D, R, T):
     """
-    Project 3D points onto a 2D fisheye camera image plane.
+    Project 3D points onto a 2D fisheye camera image plane, truncating distortion coefficients to 4 elements.
 
     :param points_3D: Nx3 numpy array of 3D points in the world coordinate system.
     :param K: 3x3 camera matrix.
-    :param D: Distortion coefficients for the fisheye lens. A 4x1 or 1x4 array.
+    :param D: Distortion coefficients for the fisheye lens. At least a 4-element array.
     :param R: 3x3 Rotation matrix representing the camera orientation.
-    :param T: Translation vector representing the camera position.
+    :param T: 3x1 Translation vector representing the camera position.
     :return: 2D projections of the 3D points as Nx2 numpy array.
     """
-    # Ensure points_3D is a homogeneous coordinate matrix
-    points_3D_hom = np.hstack([points_3D, np.ones((points_3D.shape[0], 1))])
+    # Ensure points_3D is in the correct shape for OpenCV functions
+    points_3D_corrected = points_3D.reshape(-1, 1, 3).astype(np.float32)
 
-    # Apply rotation and translation (extrinsic parameters)
-    cam_points_3D = np.dot(points_3D_hom, np.hstack([R, T]).T)
+    # Convert the rotation matrix to a rotation vector
+    rvec, _ = cv2.Rodrigues(R)
 
-    # Project points using fisheye model
-    points_2D = cv2.fisheye.projectPoints(cam_points_3D.reshape(-1, 1, 3), np.eye(3), np.zeros((3, 1)), K, D)
+    # Truncate the distortion coefficients to the first 4 elements
+    D_truncated = D[:, :4]
 
-    # Extract x, y coordinates from points_2D
-    points_2D = points_2D[0].reshape(-1, 2)
+    # Project the 3D points onto the 2D image plane
+    points_2D, _ = cv2.fisheye.projectPoints(points_3D_corrected, rvec, T, K, D_truncated)
+
+    # Reshape and extract x, y coordinates from the projected points
+    points_2D = points_2D.reshape(-1, 2)
 
     return points_2D
+
 
 def euler_to_rotation_matrix(roll, pitch, yaw):
     """
@@ -124,16 +131,5 @@ for i in range(len(x_array)):
     R_array.append(R)
     T_array.append(T)
 
-
-    # Generate 3D points
-    points_3D = np.array([[0, 0, 0],
-                        [0, 0, 1],
-                        [0, 1, 0],
-                        [0, 1, 1],
-                        [1, 0, 0],
-                        [1, 0, 1],
-                        [1, 1, 0],
-                        [1, 1, 1]])
-
-    # Project the 3D points onto the image plane
-    points_2D = project_points_fisheye(points_3D, K, D, R, T)
+    points3d = [[0,1,0]]
+    points2d = project_points_fisheye_truncated_D(np.array(points3d), K, D, R, T)
