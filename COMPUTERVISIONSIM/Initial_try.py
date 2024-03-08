@@ -155,10 +155,33 @@ def get_motion_mask(flow_mag, motion_thresh=1, kernel=np.ones((7,7))):
     
     # Return the refined motion mask, where significant motion areas are highlighted.
     return motion_mask
-    
 
-#frames_dir = "data/cyberzoo_poles_panels"
+def filter_wall_lines(edge_image):
+    # Detect lines using Hough Line Transform
+    lines = cv2.HoughLinesP(edge_image, 1, np.pi / 180, threshold=100, minLineLength=50, maxLineGap=10)
+    
+    # Create a mask with the same dimensions as the edge image, initialized to the max value (white)
+    mask = np.ones(edge_image.shape, dtype=np.uint8) * 255
+    
+    if lines is not None:
+        for line in lines:
+            for x1, y1, x2, y2 in line:
+                # Calculate the orientation of the line
+                angle = np.arctan2(y2 - y1, x2 - x1) * 180.0 / np.pi
+                
+                # Check if line is vertical or horizontal based on an angle threshold (e.g., +/- 10 degrees)
+                if abs(angle) < 10 or abs(angle) > 170:
+                    # Draw the line on the mask
+                    cv2.line(mask, (x1, y1), (x2, y2), 0, thickness=2)
+    
+    # Remove the wall lines from the edge image by masking
+    filtered_image = cv2.bitwise_and(edge_image, edge_image, mask=mask)
+    
+    return filtered_image
+
 frames_dir = "Data_gitignore/AE4317_2019_datasets/cyberzoo_poles_panels"
+#frames_dir = "Data_gitignore/AE4317_2019_datasets/cyberzoo_poles_panels_mats"
+#frames_dir = "Data_gitignore/AE4317_2019_datasets/cyberzoo_poles_panels_mats_bottomcam"
 
 for j in os.listdir(frames_dir):
     folder = os.path.join(frames_dir, j)
@@ -172,6 +195,28 @@ for j in os.listdir(frames_dir):
             frame1_bgr = cv2.rotate(frame1_bgr, cv2.ROTATE_90_COUNTERCLOCKWISE)
             frame2_bgr = cv2.imread(os.path.join(folder, frame_files[i+1]))
             frame2_bgr = cv2.rotate(frame2_bgr, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+            '''
+            # Convert BGR to HSV
+            hsv = cv2.cvtColor(frame2_bgr, cv2.COLOR_BGR2HSV)
+            # Increase brightness
+            value = 50
+            lim = 255 - value
+            hsv[:,:,2] = np.where((255 - hsv[:,:,2]) < value, 255, hsv[:,:,2]+value)
+            # Define range of green color in HSV
+            lower_green = np.array([30, 30, 30])  # Adjust these values according to your needs
+            upper_green = np.array([90, 255, 255])
+            # Threshold the HSV image to get only green colors
+            mask = cv2.inRange(hsv, lower_green, upper_green)
+            # Apply adaptive thresholding
+            mask = cv2.adaptiveThreshold(mask, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 2)
+            # Bitwise-AND mask and original image (optional, to highlight green areas)
+            result = cv2.bitwise_and(frame2_bgr, frame2_bgr, mask=mask)
+            # Display the original and result images
+            cv2.imshow('Original Image', frame2_bgr)
+            cv2.imshow('Detected Green Areas', result)
+            '''
+
 
 
             # STEP 2: resize & filter the frames
@@ -191,6 +236,9 @@ for j in os.listdir(frames_dir):
             # STEP 5: separte the flow into magnitude and direction
             mag, ang = cv2.cartToPolar(flow[..., 0], flow[..., 1])
 
+            # Display mag
+            #plt.imshow(mag, cmap='gray')
+
             # STEP 6: get the motion mask
             # get variable motion thresh based on prior knowledge of camera position
             motion_thresh = np.linspace(0.1, 1, mag.shape[0]).reshape(-1, 1)
@@ -207,10 +255,52 @@ for j in os.listdir(frames_dir):
             cv2.drawContours(mask_rgb, contours, -1, (0, 255, 0), 2)
             frame3 = cv2.Canny(frame2_bgr, 80, 150)
 
-            # STEP8 : display
-            stacked_frames = np.vstack((frame2_bgr, mask_rgb))
-            cv2.imshow('Frames with Optical Flow', stacked_frames)
-            cv2.imshow('Contours', frame3)
-            # Exit if 'q' is pressed
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+            # STEP 8: filter out the green
+            # Convert BGR to HSV
+            hsv = cv2.cvtColor(frame2_bgr, cv2.COLOR_BGR2HSV)
+            '''
+            # Apply histogram equalization
+            for i in range(hsv.shape[-1]):
+                hsv[:,:,i] = cv2.equalizeHist(hsv[:,:,i])
+            '''
+            # Or apply CLAHE
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+            for i in range(hsv.shape[-1]):
+                hsv[:,:,i] = clahe.apply(hsv[:,:,i])
+
+            # Define range of green color in HSV
+            lower_green = np.array([30, 30, 30])  # Adjust these values according to your needs
+            upper_green = np.array([90, 255, 255])
+
+            # Threshold the HSV image to get only green colors
+            green_mask = cv2.inRange(hsv, lower_green, upper_green)
+            # Define a kernel for the morphological operations
+            kernel = np.ones((15,15), np.uint8)  # Adjust the size of the kernel as needed
+
+            # Apply dilation and erosion to smooth the mask
+            green_mask = cv2.morphologyEx(green_mask, cv2.MORPH_CLOSE, kernel)
+            # Invert the mask
+            green_mask_inv = cv2.bitwise_not(green_mask)
+
+            # Bitwise-AND mask and original image (optional, to highlight green areas)
+            result = cv2.bitwise_and(frame2_bgr, frame2_bgr, mask=green_mask_inv)
+
+            # Display the original and result images
+            stack_frames = np.vstack((frame2_bgr, result))
+            cv2.imshow('Green Removed', stack_frames)
+            mask_rgb_no_green = cv2.bitwise_and(mask_rgb, mask_rgb, mask=green_mask_inv)
+
+
+            # STEP 8 : display
+            display = 1
+            if display:
+                stacked_frames = np.vstack((frame2_bgr, mask_rgb))
+                #cv2.imshow('Frames with Optical Flow', stacked_frames)
+                #cv2.imshow('Contours', frame3)
+                # show mask_rgb above mask_rgb_no_green, in the same window
+                stacked_masks = np.vstack((mask_rgb, mask_rgb_no_green))
+                cv2.imshow('Masks', stacked_masks)
+
+                # Exit if 'q' is pressed
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
