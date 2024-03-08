@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import os
 import cv2
+import matplotlib.pyplot as plt
 
 class Camera:
     def __init__(self):
@@ -157,7 +158,7 @@ yaw_array = data['att_psi']
 cyberzoo_shapes = {}
 cyberzoo_shapes['cyberzoo_green_width'] = 7 #m
 cyberzoo_shapes['cyberzoo_green_length'] = 7 #m
-cyberzoo_shapes['z_min'] = 0#m - set to original value
+cyberzoo_shapes['z_min'] = min(z_array)#m - set to original value
 # Cyberzoo corner coordinates
 cyberzoo_shapes['corner_coordinates'] = {
     'A': {'x' : cyberzoo_shapes['cyberzoo_green_width']/2,
@@ -181,7 +182,14 @@ y = np.array([corners[corner]['y'] for corner in corners])
 z = np.array([corners[corner]['z'] for corner in corners])
 
 frames_dir = "Data_gitignore/AE4317_2019_datasets/cyberzoo_poles_panels"
-
+point_2d_a_x_list = []
+point_2d_a_y_list = []
+point_2d_b_x_list = []
+point_2d_b_y_list = []
+point_2d_c_x_list = []
+point_2d_c_y_list = []
+point_2d_d_x_list = []
+point_2d_d_y_list = []
 for j in os.listdir(frames_dir):
     folder = os.path.join(frames_dir, j)
 
@@ -197,8 +205,8 @@ for j in os.listdir(frames_dir):
             target = get_target_from_orientation(pitch, yaw)
 
             camera.set_target(target)  # Camera's target
-
-            camera.set_viewport(0, 0, 1920, 1080)  # Example viewport dimensions
+            
+            camera.set_viewport(0, 0, 4096, 3072)  # Example viewport dimensions
             
             point_3d_corner_a = np.array([x[0], y[0], z[0]])  # Example 3D point
             # Project the 3D point onto the 2D image plane
@@ -226,8 +234,39 @@ for j in os.listdir(frames_dir):
             cv2.circle(frame1_bgr, (int(point_2d_c[0]), int(point_2d_c[1])), 100, (0, 0, 255), -1)
             cv2.circle(frame1_bgr, (int(point_2d_d[0]), int(point_2d_d[1])), 100, (0, 0, 255), -1)
 
+            # Append 2d points to arrays
+            point_2d_a_x_list.append(point_2d_a[0])
+            point_2d_a_y_list.append(point_2d_a[1])
+            point_2d_b_x_list.append(point_2d_b[0])
+            point_2d_b_y_list.append(point_2d_b[1])
+            point_2d_c_x_list.append(point_2d_c[0])
+            point_2d_c_y_list.append(point_2d_c[1])
+            point_2d_d_x_list.append(point_2d_d[0])
+            point_2d_d_y_list.append(point_2d_d[1])
 
             # Display image - slow it down
-            cv2.imshow('Frame', frame1_bgr)
-            cv2.waitKey(1)  # Delay in milliseconds (e.g. 100ms = 0.1s)
+            #cv2.imshow('Frame', frame1_bgr)
+            #cv2.waitKey(1)  # Delay in milliseconds (e.g. 100ms = 0.1s)
+            #print(t)
 
+from mpl_toolkits.mplot3d import Axes3D
+
+index_array = np.arange(len(point_2d_a_x_list))
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+
+# Assuming point_2d_a_z_list exists and has the same length as the other two lists
+ax.scatter(index_array, point_2d_a_x_list, point_2d_a_y_list, c='r', marker='o')
+
+plt.show()
+
+
+# plot the x y and z
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.plot(x_array, y_array, z_array)
+ax.set_xlabel('X')
+ax.set_ylabel('Y')
+ax.set_zlabel('Z')
+
+plt.show()
