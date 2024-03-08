@@ -122,6 +122,32 @@ K = np.array([[589.98363697,   0,         117.18359156],
  [  0,           0,           1        ]])
 D = np.array([[-0.32043809,  0.27653614, -0.06730844, -0.04503392, -2.50539621]])
 
+# Cyberzoo dimensions
+cyberzoo_shapes = {}
+cyberzoo_shapes['cyberzoo_green_width'] = 7 #m
+cyberzoo_shapes['cyberzoo_green_length'] = 7 #m
+cyberzoo_shapes['z_min'] = z_array[0]#m - set to original value
+# Cyberzoo corner coordinates
+cyberzoo_shapes['corner_coordinates'] = {
+    'A': {'x' : cyberzoo_shapes['cyberzoo_green_width']/2,
+          'y' : cyberzoo_shapes['cyberzoo_green_length']/2,
+          'z' : cyberzoo_shapes['z_min']},
+    'B': {'x' : -cyberzoo_shapes['cyberzoo_green_width']/2,
+          'y' : cyberzoo_shapes['cyberzoo_green_length']/2,
+          'z' : cyberzoo_shapes['z_min']},
+    'C': {'x' : -cyberzoo_shapes['cyberzoo_green_width']/2,
+          'y' : -cyberzoo_shapes['cyberzoo_green_length']/2,
+          'z' : cyberzoo_shapes['z_min']},
+    'D': {'x' : cyberzoo_shapes['cyberzoo_green_width']/2,
+          'y' : -cyberzoo_shapes['cyberzoo_green_length']/2,
+          'z' : cyberzoo_shapes['z_min']}
+}
+points3d_A = [cyberzoo_shapes['corner_coordinates']['A']['x'], cyberzoo_shapes['corner_coordinates']['A']['y'], cyberzoo_shapes['corner_coordinates']['A']['z']]
+points3d_B = [cyberzoo_shapes['corner_coordinates']['B']['x'], cyberzoo_shapes['corner_coordinates']['B']['y'], cyberzoo_shapes['corner_coordinates']['B']['z']]
+points3d_C = [cyberzoo_shapes['corner_coordinates']['C']['x'], cyberzoo_shapes['corner_coordinates']['C']['y'], cyberzoo_shapes['corner_coordinates']['C']['z']]
+points3d_D = [cyberzoo_shapes['corner_coordinates']['D']['x'], cyberzoo_shapes['corner_coordinates']['D']['y'], cyberzoo_shapes['corner_coordinates']['D']['z']]
+
+
 
 # Generate R and T for each point in the arrays
 R_array = []
@@ -131,5 +157,7 @@ for i in range(len(x_array)):
     R_array.append(R)
     T_array.append(T)
 
-    points3d = [[0,1,0]]
-    points2d = project_points_fisheye_truncated_D(np.array(points3d), K, D, R, T)
+    points2d_a = project_points_fisheye_truncated_D(np.array(points3d_A), K, D, R, T)
+    points2d_b = project_points_fisheye_truncated_D(np.array(points3d_B), K, D, R, T)
+    points2d_c = project_points_fisheye_truncated_D(np.array(points3d_C), K, D, R, T)
+    points2d_d = project_points_fisheye_truncated_D(np.array(points3d_D), K, D, R, T)
