@@ -157,6 +157,7 @@ def get_motion_mask(flow_mag, motion_thresh=1, kernel=np.ones((7,7))):
     return motion_mask
 
 
+
 def process_frame(frame2_bgr, mask_rgb, lower_green=np.array([30, 30, 30]), upper_green=np.array([90, 255, 255]), kernel_size=(15,15), canny_thresholds=(100, 200)):
     # Convert BGR to HSV
     hsv = cv2.cvtColor(frame2_bgr, cv2.COLOR_BGR2HSV)
@@ -215,29 +216,6 @@ for j in os.listdir(frames_dir):
             frame2_bgr = cv2.imread(os.path.join(folder, frame_files[i+1]))
             frame2_bgr = cv2.rotate(frame2_bgr, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
-            '''
-            # Convert BGR to HSV
-            hsv = cv2.cvtColor(frame2_bgr, cv2.COLOR_BGR2HSV)
-            # Increase brightness
-            value = 50
-            lim = 255 - value
-            hsv[:,:,2] = np.where((255 - hsv[:,:,2]) < value, 255, hsv[:,:,2]+value)
-            # Define range of green color in HSV
-            lower_green = np.array([30, 30, 30])  # Adjust these values according to your needs
-            upper_green = np.array([90, 255, 255])
-            # Threshold the HSV image to get only green colors
-            mask = cv2.inRange(hsv, lower_green, upper_green)
-            # Apply adaptive thresholding
-            mask = cv2.adaptiveThreshold(mask, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 2)
-            # Bitwise-AND mask and original image (optional, to highlight green areas)
-            result = cv2.bitwise_and(frame2_bgr, frame2_bgr, mask=mask)
-            # Display the original and result images
-            cv2.imshow('Original Image', frame2_bgr)
-            cv2.imshow('Detected Green Areas', result)
-            '''
-
-
-
             # STEP 2: resize & filter the frames
             frame1_resized = resize_frame(frame1_bgr, scale_percent = 100)
             frame1_filtered = filter_frames(frame1_resized)
@@ -254,9 +232,6 @@ for j in os.listdir(frames_dir):
 
             # STEP 5: separte the flow into magnitude and direction
             mag, ang = cv2.cartToPolar(flow[..., 0], flow[..., 1])
-
-            # Display mag
-            #plt.imshow(mag, cmap='gray')
 
             # STEP 6: get the motion mask
             # get variable motion thresh based on prior knowledge of camera position
@@ -276,13 +251,10 @@ for j in os.listdir(frames_dir):
 
             # STEP 8: filter out the green
             edges, mask_rgb_no_green = process_frame(frame2_bgr, mask_rgb)
-
-            # Display the edges
-            cv2.imshow('Edges', edges)
-
-
-
-            # STEP 8 : display
+            
+            # STEP 9:detect black
+                        
+            # STEP 9 : display
             display = 1
             if display:
                 stacked_frames = np.vstack((frame2_bgr, mask_rgb))
