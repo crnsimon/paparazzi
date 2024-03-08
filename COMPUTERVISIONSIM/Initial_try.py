@@ -273,6 +273,26 @@ for j in os.listdir(frames_dir):
             stack_frames = np.vstack((frame2_bgr, result_black))
             cv2.imshow('Pillar', stack_frames)
 
+            # Detect the floor lines from result_black
+            # Convert the image to grayscale
+            gray = cv2.cvtColor(result_black, cv2.COLOR_BGR2GRAY)
+            # Apply edge detection
+            edges = cv2.Canny(gray, 50, 150)
+            # Apply Hough Line Transform
+            lines = cv2.HoughLinesP(edges, 1, np.pi/180, 50, maxLineGap=50)
+            # Draw the lines on the original image
+            for line in lines:
+                x1, y1, x2, y2 = line[0]
+                cv2.line(frame2_bgr, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            # Display the original and result images
+            # Convert edges to a 3-channel image
+            edges_colored = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+
+            # Now you can stack the images
+            stack_frames = np.vstack((frame2_bgr, edges_colored))
+
+            cv2.imshow('Floor Lines', stack_frames)
+
             # Apply the mask to mask_rgb_no_green
             mask_rgb_no_greenblack = cv2.bitwise_and(mask_rgb_no_green, mask_rgb_no_green, mask=mask_black)
 
