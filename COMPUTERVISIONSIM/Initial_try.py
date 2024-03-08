@@ -199,7 +199,8 @@ def process_frame(frame2_bgr, mask_rgb, lower_green=np.array([30, 30, 30]), uppe
 
     return edges, mask_rgb_no_green
 
-frames_dir = "Data_gitignore/AE4317_2019_datasets/cyberzoo_poles_panels"
+
+frames_dir = "/home/pierlugimeneses/paparazzi/COMPUTERVISIONSIM/AE4317_2019_datasets/AE4317_2019_datasets/cyberzoo_poles_panels"
 #frames_dir = "Data_gitignore/AE4317_2019_datasets/cyberzoo_poles_panels_mats"
 #frames_dir = "Data_gitignore/AE4317_2019_datasets/cyberzoo_poles_panels_mats_bottomcam"
 
@@ -253,7 +254,26 @@ for j in os.listdir(frames_dir):
             edges, mask_rgb_no_green = process_frame(frame2_bgr, mask_rgb)
             
             # STEP 9:detect black
-                        
+            # Convert BGR to HSV
+            hsv = cv2.cvtColor(frame2_bgr, cv2.COLOR_BGR2HSV)
+            hist_hue = cv2.calcHist([hsv], [0], None, [180], [0, 180])
+            # Find the hue with the maximum occurrence (most likely to be the pillar if it's dominant)
+            pillar_hue = np.argmax(hist_hue)
+            # Assuming a reasonable range for hue, saturation, and value for the mask
+            # We use a margin around the detected hue for capturing the color variance
+            hue_margin = 10
+            sat_margin = 50
+            val_margin = 50
+            # Define the lower and upper bound for the HSV range
+            lower_bound = np.array([pillar_hue - hue_margin, sat_margin, val_margin])
+            upper_bound = np.array([pillar_hue + hue_margin, 255, 255])
+            # Create the mask
+            mask = cv2.inRange(hsv, lower_bound, upper_bound)
+            # The resulting mask
+            result = cv2.bitwise_and(frame2_bgr, frame2_bgr, mask=mask)
+            # Display the original and result images
+            stack_frames = np.vstack((frame2_bgr, result))
+            cv2.imshow('Pillar', stack_frames)
             # STEP 9 : display
             display = 1
             if display:
