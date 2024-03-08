@@ -156,28 +156,47 @@ def get_motion_mask(flow_mag, motion_thresh=1, kernel=np.ones((7,7))):
     # Return the refined motion mask, where significant motion areas are highlighted.
     return motion_mask
 
-def filter_wall_lines(edge_image):
-    # Detect lines using Hough Line Transform
-    lines = cv2.HoughLinesP(edge_image, 1, np.pi / 180, threshold=100, minLineLength=50, maxLineGap=10)
-    
-    # Create a mask with the same dimensions as the edge image, initialized to the max value (white)
-    mask = np.ones(edge_image.shape, dtype=np.uint8) * 255
-    
-    if lines is not None:
-        for line in lines:
-            for x1, y1, x2, y2 in line:
-                # Calculate the orientation of the line
-                angle = np.arctan2(y2 - y1, x2 - x1) * 180.0 / np.pi
-                
-                # Check if line is vertical or horizontal based on an angle threshold (e.g., +/- 10 degrees)
-                if abs(angle) < 10 or abs(angle) > 170:
-                    # Draw the line on the mask
-                    cv2.line(mask, (x1, y1), (x2, y2), 0, thickness=2)
-    
-    # Remove the wall lines from the edge image by masking
-    filtered_image = cv2.bitwise_and(edge_image, edge_image, mask=mask)
-    
-    return filtered_image
+
+def process_frame(frame2_bgr, mask_rgb, lower_green=np.array([30, 30, 30]), upper_green=np.array([90, 255, 255]), kernel_size=(15,15), canny_thresholds=(100, 200)):
+    # Convert BGR to HSV
+    hsv = cv2.cvtColor(frame2_bgr, cv2.COLOR_BGR2HSV)
+
+    # Apply CLAHE
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    for i in range(hsv.shape[-1]):
+        hsv[:,:,i] = clahe.apply(hsv[:,:,i])
+
+    # Threshold the HSV image to get only green colors
+    green_mask = cv2.inRange(hsv, lower_green, upper_green)
+
+    # Define a kernel for the morphological operations
+    kernel = np.ones(kernel_size, np.uint8)
+
+    # Apply dilation and erosion to smooth the mask
+    green_mask = cv2.morphologyEx(green_mask, cv2.MORPH_CLOSE, kernel)
+
+    # Invert the mask
+    green_mask_inv = cv2.bitwise_not(green_mask)
+
+    # Bitwise-AND mask and original image (optional, to highlight green areas)
+    result = cv2.bitwise_and(frame2_bgr, frame2_bgr, mask=green_mask_inv)
+
+    # Display the original and result images
+    stack_frames = np.vstack((frame2_bgr, result))
+    cv2.imshow('Green Removed', stack_frames)
+
+    mask_rgb_no_green = cv2.bitwise_and(mask_rgb, mask_rgb, mask=green_mask_inv)
+
+    # Apply edge detection to the green mask
+    edges = cv2.Canny(green_mask, *canny_thresholds)
+
+    # Filter out the wall lines
+    edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
+
+    # Display the edges
+    cv2.imshow('Edges', edges)
+
+    return edges, mask_rgb_no_green
 
 frames_dir = "Data_gitignore/AE4317_2019_datasets/cyberzoo_poles_panels"
 #frames_dir = "Data_gitignore/AE4317_2019_datasets/cyberzoo_poles_panels_mats"
@@ -256,39 +275,11 @@ for j in os.listdir(frames_dir):
             frame3 = cv2.Canny(frame2_bgr, 80, 150)
 
             # STEP 8: filter out the green
-            # Convert BGR to HSV
-            hsv = cv2.cvtColor(frame2_bgr, cv2.COLOR_BGR2HSV)
-            '''
-            # Apply histogram equalization
-            for i in range(hsv.shape[-1]):
-                hsv[:,:,i] = cv2.equalizeHist(hsv[:,:,i])
-            '''
-            # Or apply CLAHE
-            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-            for i in range(hsv.shape[-1]):
-                hsv[:,:,i] = clahe.apply(hsv[:,:,i])
+            edges, mask_rgb_no_green = process_frame(frame2_bgr, mask_rgb)
 
-            # Define range of green color in HSV
-            lower_green = np.array([30, 30, 30])  # Adjust these values according to your needs
-            upper_green = np.array([90, 255, 255])
+            # Display the edges
+            cv2.imshow('Edges', edges)
 
-            # Threshold the HSV image to get only green colors
-            green_mask = cv2.inRange(hsv, lower_green, upper_green)
-            # Define a kernel for the morphological operations
-            kernel = np.ones((15,15), np.uint8)  # Adjust the size of the kernel as needed
-
-            # Apply dilation and erosion to smooth the mask
-            green_mask = cv2.morphologyEx(green_mask, cv2.MORPH_CLOSE, kernel)
-            # Invert the mask
-            green_mask_inv = cv2.bitwise_not(green_mask)
-
-            # Bitwise-AND mask and original image (optional, to highlight green areas)
-            result = cv2.bitwise_and(frame2_bgr, frame2_bgr, mask=green_mask_inv)
-
-            # Display the original and result images
-            stack_frames = np.vstack((frame2_bgr, result))
-            cv2.imshow('Green Removed', stack_frames)
-            mask_rgb_no_green = cv2.bitwise_and(mask_rgb, mask_rgb, mask=green_mask_inv)
 
 
             # STEP 8 : display
