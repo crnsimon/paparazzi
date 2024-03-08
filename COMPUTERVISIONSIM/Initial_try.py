@@ -199,9 +199,7 @@ def process_frame(frame2_bgr, mask_rgb, lower_green=np.array([30, 30, 30]), uppe
 
     return edges, mask_rgb_no_green
 
-
-frames_dir = "/home/pierlugimeneses/paparazzi/COMPUTERVISIONSIM/AE4317_2019_datasets/AE4317_2019_datasets/cyberzoo_poles_panels"
-#frames_dir = "Data_gitignore/AE4317_2019_datasets/cyberzoo_poles_panels_mats"
+frames_dir = "Data_gitignore/AE4317_2019_datasets/cyberzoo_poles_panels"
 #frames_dir = "Data_gitignore/AE4317_2019_datasets/cyberzoo_poles_panels_mats_bottomcam"
 
 for j in os.listdir(frames_dir):
@@ -268,12 +266,19 @@ for j in os.listdir(frames_dir):
             lower_bound = np.array([pillar_hue - hue_margin, sat_margin, val_margin])
             upper_bound = np.array([pillar_hue + hue_margin, 255, 255])
             # Create the mask
-            mask = cv2.inRange(hsv, lower_bound, upper_bound)
+            mask_black = cv2.inRange(hsv, lower_bound, upper_bound)
             # The resulting mask
-            result = cv2.bitwise_and(frame2_bgr, frame2_bgr, mask=mask)
+            result_black = cv2.bitwise_and(frame2_bgr, frame2_bgr, mask=mask_black)
             # Display the original and result images
-            stack_frames = np.vstack((frame2_bgr, result))
+            stack_frames = np.vstack((frame2_bgr, result_black))
             cv2.imshow('Pillar', stack_frames)
+
+            # Apply the mask to mask_rgb_no_green
+            mask_rgb_no_greenblack = cv2.bitwise_and(mask_rgb_no_green, mask_rgb_no_green, mask=mask_black)
+
+
+
+
             # STEP 9 : display
             display = 1
             if display:
@@ -281,7 +286,7 @@ for j in os.listdir(frames_dir):
                 #cv2.imshow('Frames with Optical Flow', stacked_frames)
                 #cv2.imshow('Contours', frame3)
                 # show mask_rgb above mask_rgb_no_green, in the same window
-                stacked_masks = np.vstack((mask_rgb, mask_rgb_no_green))
+                stacked_masks = np.vstack((mask_rgb, mask_rgb_no_greenblack))
                 cv2.imshow('Masks', stacked_masks)
 
                 # Exit if 'q' is pressed
