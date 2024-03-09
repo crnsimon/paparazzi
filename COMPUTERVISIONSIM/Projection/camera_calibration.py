@@ -39,12 +39,14 @@ for image_file in image_files:
 
 cv2.destroyAllWindows()
 
+'''
 # Perform camera calibration
 ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
 
 # Display the camera matrix and distortion coefficients
 print("Camera matrix:\n", mtx)
 print("Distortion coefficients:\n", dist)
+'''
 
 # Calibrate fisheye camera
 N_OK = len(objpoints)
@@ -75,13 +77,13 @@ print("Fisheye distortion coefficients:\n", D)
 
 '''
 Fisheye camera matrix:
- [[321.68691089   0.          20.10365238]
- [  0.         320.49807675 268.48758584]
+ [[324.25570292   0.          25.65423155]
+ [  0.         323.60053988 265.75527519]
  [  0.           0.           1.        ]]
 Fisheye distortion coefficients:
- [[-0.03030915]
- [ 0.00250146]
- [-0.00463136]
- [-0.00084166]]
+ [[-0.02808937]
+ [-0.04655074]
+ [ 0.0786952 ]
+ [-0.05046657]]
 
 '''

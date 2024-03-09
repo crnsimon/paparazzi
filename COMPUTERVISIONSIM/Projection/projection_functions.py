@@ -25,12 +25,18 @@ class Camera:
                            [  0,           0,           1        ]])
         
         self.D = np.array([[-0.32043809,  0.27653614, -0.06730844, -0.04503392, -2.50539621]])
-        '''
+        
         self.K = np.array([[321.68691089,   0,          20.10365238],
                            [  0,         320.49807675, 268.48758584],
                            [  0,           0,           1.        ]])
         
         self.D =  np.array([[-0.03030915, 0.00250146, -0.00463136,-0.00084166]])
+        '''
+        self.K = np.array([[324.25570292,   0,          25.65423155],
+                   [  0,         323.60053988, 265.75527519],
+                   [  0,           0,           1.        ]])
+
+        self.D = np.array([[-0.02808937, -0.04655074, 0.0786952, -0.05046657]])
 
 
 
@@ -78,13 +84,39 @@ class Camera:
     It is a fisheye camera, so the projection is different
     make a method which takes a 3D point and returns the 2D point
     '''
-    def project_3D_to_2D(self, points_3D):
+    def point3DWorld_to_point3DCamera(self, point_3D):
         rvec = self.update_rotation_vector()
         T = self.update_camera_translation_vector()
+        R = self.update_camera_rotation_matrix()
+
+        # Given 3D point in world coordinates
+        Points3D = np.squeeze(point_3D)
+
+        # Convert Points3D to a column vector
+        Points3D_column = Points3D.reshape(-1, 1)
+
+        # Apply the translation
+        translated_point = Points3D_column - T
+
+        # Apply the rotation matrix R to get the camera coordinates
+        Points3D_camera = R @ translated_point
+        return Points3D_camera
+
+    def project_3D_to_2D(self, points_3D_World):
+        rvec = self.update_rotation_vector()
+        T = self.update_camera_translation_vector()
+
+        # Apply transformation to project points from world to camera coordinates
+        # The translation needs to be negated because we are moving the points to the camera's coordinate system
+        points_3D_camera = self.point3DWorld_to_point3DCamera(points_3D_World)
+        points_3D_camera = np.array(points_3D_camera, dtype=np.float32).reshape(-1, 1, 3)
         #D_truncated = self.D[:, :4]
-        points_2D, _ = cv2.fisheye.projectPoints(points_3D, rvec, T, self.K, self.D)
+        points_2D, _ = cv2.fisheye.projectPoints(points_3D_camera, rvec, np.zeros((3,1)), self.K, self.D)
         points_2D = points_2D.reshape(-1, 2)
         return points_2D
+    
+    
+
         
 
 class StateVector:
@@ -320,14 +352,9 @@ class VideoFeed:
         self.image_current = img
         return img
     
-    def image_rotate_90_counter(self, all_images=True):
-        if all_images:
-            for i, img_path in enumerate(self.images):
-                img = cv2.imread(img_path)  # Read the image from its file path
-                rotated_img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)  # Rotate the image data
-                self.images[i] = rotated_img  # Update the list with rotated image data
-        else:
-            self.image_current = cv2.rotate(self.image_current, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    def image_rotate_90_counter(self):
+        self.image_current = cv2.rotate(self.image_current, cv2.ROTATE_90_COUNTERCLOCKWISE)  # Rotate the image data
+        return None
 
     
     def image_show(self, waitKeyvalue = 100):
