@@ -19,19 +19,12 @@ class Camera:
         self.theta = 0
         self.psi = 0
         self.phi = 0
-        '''
-        self.K = np.array([[589.98363697,   0,         117.18359156],
+        self.K_nonfisheye = np.array([[589.98363697,   0,         117.18359156],
                            [  0,         600.54137529, 261.48275908],
                            [  0,           0,           1        ]])
         
-        self.D = np.array([[-0.32043809,  0.27653614, -0.06730844, -0.04503392, -2.50539621]])
-        
-        self.K = np.array([[321.68691089,   0,          20.10365238],
-                           [  0,         320.49807675, 268.48758584],
-                           [  0,           0,           1.        ]])
-        
-        self.D =  np.array([[-0.03030915, 0.00250146, -0.00463136,-0.00084166]])
-        '''
+        self.D_nonfisheye = np.array([[-0.32043809,  0.27653614, -0.06730844, -0.04503392, -2.50539621]])
+
         self.K = np.array([[324.25570292,   0,          25.65423155],
                    [  0,         323.60053988, 265.75527519],
                    [  0,           0,           1.        ]])
@@ -113,8 +106,36 @@ class Camera:
         #D_truncated = self.D[:, :4]
         points_2D, _ = cv2.fisheye.projectPoints(points_3D_camera, rvec, np.zeros((3,1)), self.K, self.D)
         points_2D = points_2D.reshape(-1, 2)
-        return points_2D
+        return points_2D, points_3D_camera
     
+    def project_3D_to_2D_non_fisheye(self, points_3D):
+        """
+        Project 3D points to 2D image plane using a non-fisheye (pinhole) camera model.
+
+        Args:
+            points_3D (np.ndarray): Array of 3D points in the world coordinate system, shape (N, 3).
+            rvec (np.ndarray): Rotation vector representing the orientation of the camera, shape (3,).
+            tvec (np.ndarray): Translation vector representing the position of the camera, shape (3,).
+            camera_matrix (np.ndarray): Camera matrix (intrinsic parameters), shape (3, 3).
+            dist_coeffs (np.ndarray): Distortion coefficients, shape (5, 1).
+
+        Returns:
+            np.ndarray: Array of projected 2D points on the image plane, shape (N, 2).
+        """
+        rvec = self.update_rotation_vector()
+        T = self.update_camera_translation_vector()
+
+        # Ensure points_3D is in the correct shape (N, 1, 3)
+        points_3D = np.array(points_3D, dtype=np.float32).reshape(-1, 1, 3)
+
+        # Project 3D points to the 2D image plane
+        points_2D, _ = cv2.projectPoints(points_3D, rvec, T, self.K_nonfisheye, self.D_nonfisheye)
+
+        # Reshape points_2D to (N, 2) for convenience
+        points_2D = points_2D.reshape(-1, 2)
+
+        return points_2D
+
     
 
         
