@@ -12,28 +12,36 @@ import os
 import glob
 
 class Camera:
-    def __init__(self, x_pos, y_pos, z_pos, theta, psi, phi):
-        self.x_pos = x_pos
-        self.y_pos = y_pos
-        self.z_pos = z_pos
-        self.theta = theta
-        self.psi = psi
-        self.phi = phi
-
+    def __init__(self):
+        self.x_pos = 0
+        self.y_pos = 0
+        self.z_pos = 0
+        self.theta = 0
+        self.psi = 0
+        self.phi = 0
+        '''
         self.K = np.array([[589.98363697,   0,         117.18359156],
                            [  0,         600.54137529, 261.48275908],
                            [  0,           0,           1        ]])
         
         self.D = np.array([[-0.32043809,  0.27653614, -0.06730844, -0.04503392, -2.50539621]])
+        '''
+        self.K = np.array([[321.68691089,   0,          20.10365238],
+                           [  0,         320.49807675, 268.48758584],
+                           [  0,           0,           1.        ]])
+        
+        self.D =  np.array([[-0.03030915, 0.00250146, -0.00463136,-0.00084166]])
 
-    def update_state_vector(self, state_vector, index):
-        state_vector.update_state_with_index(index)
-        self.x_pos = state_vector.x_pos
-        self.y_pos = state_vector.y_pos
-        self.z_pos = state_vector.z_pos
-        self.theta = state_vector.theta
-        self.psi = state_vector.psi
-        self.phi = state_vector.phi
+
+
+    def update_state_vector(self, state_vector, time):
+        state_vector_dict = state_vector.interpolate(time)
+        self.x_pos = state_vector_dict['x_pos']
+        self.y_pos = state_vector_dict['y_pos']
+        self.z_pos = state_vector_dict['z_pos']
+        self.theta = state_vector_dict['theta']
+        self.psi = state_vector_dict['psi']
+        self.phi = state_vector_dict['phi']
         return None
 
     def update_camera_rotation_matrix(self):
@@ -73,15 +81,15 @@ class Camera:
     def project_3D_to_2D(self, points_3D):
         rvec = self.update_rotation_vector()
         T = self.update_camera_translation_vector()
-        D_truncated = self.D[:, :4]
-        points_2D, _ = cv2.fisheye.projectPoints(points_3D, rvec, T, self.K, D_truncated)
+        #D_truncated = self.D[:, :4]
+        points_2D, _ = cv2.fisheye.projectPoints(points_3D, rvec, T, self.K, self.D)
         points_2D = points_2D.reshape(-1, 2)
         return points_2D
         
 
 class StateVector:
     def __init__(self, file_path):
-        self.time_arry = []
+        self.time_array = []
         self.x_pos_array = []
         self.y_pos_array = []
         self.z_pos_array = []
@@ -169,6 +177,24 @@ class StateVector:
     
     def return_points3d(self, index):
         return [self.x_pos_array[index], self.y_pos_array[index], self.z_pos_array[index]]
+    
+    def find_frequency(self):
+        time_diff = [self.time_array[i] - self.time_array[i-1] for i in range(1, len(self.time_array))]
+        return 1/np.mean(time_diff)
+    
+    def interpolate(self, time):
+        # Interpolate the arrays with time array and output corresponding value
+        interpolated_state_vector = {}
+        interpolated_state_vector['time'] = time
+        interpolated_state_vector['x_pos'] = np.interp(time, self.time_array, self.x_pos_array)
+        interpolated_state_vector['y_pos'] = np.interp(time, self.time_array, self.y_pos_array)
+        interpolated_state_vector['z_pos'] = np.interp(time, self.time_array, self.z_pos_array)
+        interpolated_state_vector['theta'] = np.interp(time, self.time_array, self.theta_array)
+        interpolated_state_vector['psi'] = np.interp(time, self.time_array, self.psi_array)
+        interpolated_state_vector['phi'] = np.interp(time, self.time_array, self.phi_array)
+        return interpolated_state_vector
+
+        
 
 
 class CyberZooStructure:
@@ -361,6 +387,11 @@ class VideoFeed:
         frame_resized = cv2.resize(frame, dsize)
         self.image = frame_resized
         return None
+    
+    def find_time(self):
+        # XXXXXXXX.jpg -> SS.XXXXXX jpg SS is seconds i.e. 60483805.jpg -> 60.483805 seconds
+        time = int(self.frame_files[self.index].split('.')[0])/1000000
+        return time
     
 
 

@@ -5,7 +5,7 @@ import os
 import glob
 
 # Define the dimensions of the chessboard to be used
-chessboard_size = (8, 6)  # Number of inner corners per chessboard row and column
+chessboard_size = (9, 6)  # Number of inner corners per chessboard row and column
 
 # Arrays to store object points and image points from all images
 objpoints = []  # 3D points in real world space
@@ -46,11 +46,42 @@ ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.sh
 print("Camera matrix:\n", mtx)
 print("Distortion coefficients:\n", dist)
 
+# Calibrate fisheye camera
+N_OK = len(objpoints)
+K = np.zeros((3, 3))
+D = np.zeros((4, 1))
+rvecs = [np.zeros((1, 1, 3), dtype=np.float64) for i in range(N_OK)]
+tvecs = [np.zeros((1, 1, 3), dtype=np.float64) for i in range(N_OK)]
+
+# Convert objpoints to a numpy array of type float32 and reshape to have 3 channels
+objpoints = [np.array(op, dtype=np.float32).reshape(-1, 1, 3) for op in objpoints]
+
+
+retval, K, D, rvecs, tvecs = cv2.fisheye.calibrate(
+    objpoints,
+    imgpoints,
+    gray.shape[::-1],
+    K,
+    D,
+    rvecs,
+    tvecs,
+    cv2.fisheye.CALIB_RECOMPUTE_EXTRINSIC + cv2.fisheye.CALIB_CHECK_COND + cv2.fisheye.CALIB_FIX_SKEW,
+    criteria=(cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 1e-6)
+)
+
+print("Fisheye camera matrix:\n", K)
+print("Fisheye distortion coefficients:\n", D)
+
+
 '''
-Camera matrix:
- [[589.98363697   0.         117.18359156]
- [  0.         600.54137529 261.48275908]
+Fisheye camera matrix:
+ [[321.68691089   0.          20.10365238]
+ [  0.         320.49807675 268.48758584]
  [  0.           0.           1.        ]]
-Distortion coefficients:
- [[-0.32043809  0.27653614 -0.06730844 -0.04503392 -2.50539621]]
+Fisheye distortion coefficients:
+ [[-0.03030915]
+ [ 0.00250146]
+ [-0.00463136]
+ [-0.00084166]]
+
 '''
