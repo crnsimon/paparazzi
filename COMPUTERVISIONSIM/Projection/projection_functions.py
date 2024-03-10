@@ -38,15 +38,31 @@ class Camera:
         self.x_pos = state_vector_dict['x_pos']
         self.y_pos = state_vector_dict['y_pos']
         self.z_pos = state_vector_dict['z_pos']
+
         self.theta = state_vector_dict['theta']
         self.psi = state_vector_dict['psi']
         self.phi = state_vector_dict['phi']
+        # if state_vector_dict['psi'] < 0:
+        #     self.psi = 2 * np.pi + state_vector_dict['psi']
+        # else:
+        #     self.psi = state_vector_dict['psi']
+        # if state_vector_dict['phi'] < 0:
+        #     self.psi = 2 * np.pi + state_vector_dict['phi']
+        # else:
+        #     self.phi = state_vector_dict['phi']
         return None
 
     def update_camera_rotation_matrix(self):
-            roll = self.phi
+            # Converting from [-pi, pi] to [0, 2pi]:
+            if self.phi < 0:
+                roll = 2 * np.pi + self.phi
+            else:
+                roll = self.phi
+            if self.psi < 0:
+                yaw = 2 * np.pi + self.psi
+            else:
+                yaw = self.psi
             pitch = self.theta
-            yaw = self.psi
             Rx = np.array([[1, 0, 0],
                    [0, np.cos(roll), -np.sin(roll)],
                    [0, np.sin(roll), np.cos(roll)]])
@@ -135,6 +151,8 @@ class Camera:
         points_2D = points_2D.reshape(-1, 2)
 
         return points_2D
+
+
 
     
 
