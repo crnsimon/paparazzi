@@ -61,12 +61,8 @@ for i in range(len(images.frame_files)):
     times_list.append(time)
     # update the camera object
     camera_front.update_state_vector(state_vector, time)
-    x_pos_camera.append(camera_front.x_pos)
-    y_pos_camera.append(camera_front.y_pos)
-    z_pos_camera.append(camera_front.z_pos)
-    theta_camera.append(camera_front.theta)
-    phi_camera.append(camera_front.phi)
-    psi_camera.append(camera_front.psi)
+    x_pos_camera.append(camera_front.x_pos); y_pos_camera.append(camera_front.y_pos); z_pos_camera.append(camera_front.z_pos)
+    theta_camera.append(camera_front.theta); phi_camera.append(camera_front.phi); psi_camera.append(camera_front.psi)
 
     # Create the projection
     # Project the cyberzoo points
@@ -76,7 +72,7 @@ for i in range(len(images.frame_files)):
 
     # Display the image
     if image_bool:
-        images.image_show(waitKeyvalue = 1000)
+        images.image_show(waitKeyvalue = 1000000)
 
 
 
