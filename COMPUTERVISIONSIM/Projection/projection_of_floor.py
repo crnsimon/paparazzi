@@ -6,7 +6,8 @@ import matplotlib.pyplot as plt
 import mpl_toolkits.mplot3d.axes3d as p3
 import matplotlib.animation as animation
 from matplotlib.animation import FFMpegWriter, FuncAnimation
-plot_bool = True
+
+plot_bool = False
 image_bool = True
 animation_bool = True
 
@@ -20,6 +21,9 @@ image_path = r'C:/Users/aname/Documents/GitHub/paparazzi/AE4317_2019_datasets/AE
 
 image_path = r"C:\Users\Jonathan van Zyl\Documents\GitHub\paparazzi\Data_gitignore\AE4317_2019_datasets\cyberzoo_poles_panels\20190121-140205"
 file_path = "Data_gitignore/AE4317_2019_datasets/cyberzoo_poles_panels/20190121-140303.csv"
+
+image_path = 'COMPUTERVISIONSIM/Projection/single_image/image'
+file_path = 'COMPUTERVISIONSIM/Projection/single_image/20190121-140303.csv'
 
 # Create a camera object
 camera_front = Camera()
@@ -72,7 +76,7 @@ for i in range(len(images.frame_files)):
 
     # Display the image
     if image_bool:
-        images.image_show(waitKeyvalue = 1)
+        images.image_show(waitKeyvalue = 1000)
 
 
 
