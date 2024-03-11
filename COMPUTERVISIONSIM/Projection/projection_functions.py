@@ -139,6 +139,7 @@ class Camera:
         points_3D_camera_XYZRGB_array = np.zeros((points_3D_World_XYZ_RGB_Array.shape[0], 6))
 
         for i in range((points_3D_World_XYZ_RGB_Array.shape[0])):
+            # Extract XYZ
             points_3D_World = np.array([points_3D_World_XYZ_RGB_Array[i][0][:3]])
             points_3D_World = np.array(points_3D_World, dtype=np.float32).reshape(-1, 1, 3)        
 
