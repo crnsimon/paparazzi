@@ -12,15 +12,15 @@ image_bool = True
 animation_bool = False
 
 # Use the Camera class from projection_functions.py
-from projection_functions import Camera, StateVector, CyberZooStructure, VideoFeed
+from projection_functions import Camera, StateVector, CyberZooStructure, VideoFeed, add_color_to_points, blend_colors
 
 # Data paths (Adjust to your own directory path)
 file_path = "C:/Users/aname/Documents/GitHub/paparazzi/AE4317_2019_datasets/AE4317_2019_datasets/cyberzoo_poles_panels/20190121-140303.csv"
 image_path = "C:/Users/aname/Documents/GitHub/paparazzi/AE4317_2019_datasets/AE4317_2019_datasets/cyberzoo_poles_panels/20190121-140205"
 image_path = r'C:/Users/aname/Documents/GitHub/paparazzi/AE4317_2019_datasets/AE4317_2019_datasets/cyberzoo_poles_panels/20190121-140205'
 
-#image_path = r"C:\Users\Jonathan van Zyl\Documents\GitHub\paparazzi\Data_gitignore\AE4317_2019_datasets\cyberzoo_canvas_approach\20190121-151448"
-#file_path = "Data_gitignore/AE4317_2019_datasets/cyberzoo_canvas_approach/20190121-151518.csv"
+image_path = r"C:\Users\Jonathan van Zyl\Documents\GitHub\paparazzi\Data_gitignore\AE4317_2019_datasets\cyberzoo_poles_panels\20190121-140205"
+file_path = "Data_gitignore/AE4317_2019_datasets/cyberzoo_poles_panels/20190121-140303.csv"
 
 # Create a camera object
 camera_front = Camera()
@@ -28,9 +28,31 @@ camera_front = Camera()
 # Create a state vector object
 state_vector = StateVector(file_path)
 # Extract Cyberzoo data
-zmin = max(state_vector.z_pos_array)
+zmin = max(state_vector.z_pos_array)#max(state_vector.z_pos_array)
 cyberzoo = CyberZooStructure(zmin)
 points3d_cyberzoo = cyberzoo.return_points3d()
+perimeterspoints_3dWorld_Cyberzoo = cyberzoo.get_perimeter_points()
+
+# Define the RGB color codes for each corner
+corner_colors = {
+    'A': (0, 255, 0),  # Green
+    'B': (255, 0, 0),  # Red
+    'C': (0, 0, 255),  # Blue
+    'D': (255, 255, 0)  # Yellow
+}
+
+# Get colored points for each line
+AB_colored_points = add_color_to_points(cyberzoo.generate_line_points(cyberzoo.corner_coordinates['A'], cyberzoo.corner_coordinates['B']), corner_colors['A'], corner_colors['B'])
+BC_colored_points = add_color_to_points(cyberzoo.generate_line_points(cyberzoo.corner_coordinates['B'], cyberzoo.corner_coordinates['C'])[1:], corner_colors['B'], corner_colors['C'])
+CD_colored_points = add_color_to_points(cyberzoo.generate_line_points(cyberzoo.corner_coordinates['C'], cyberzoo.corner_coordinates['D'])[1:], corner_colors['C'], corner_colors['D'])
+DA_colored_points = add_color_to_points(cyberzoo.generate_line_points(cyberzoo.corner_coordinates['D'], cyberzoo.corner_coordinates['A'])[1:], corner_colors['D'], corner_colors['A'])
+
+# Combine all colored points
+colored_perimeter_points = AB_colored_points + BC_colored_points + CD_colored_points + DA_colored_points
+
+# Convert to a more friendly format for display
+formatted_colored_points = np.array([(*point, *color) for point, color in colored_perimeter_points]) # (X, Y, Z, R, G, B)
+
 
 # Load the image
 images = VideoFeed(image_path)
@@ -46,16 +68,6 @@ z_pos_camera = []
 theta_camera = []
 phi_camera = []
 psi_camera = []
-
-points2d_cyberzoo_0_array = []
-points2d_cyberzoo_1_array = []
-points2d_cyberzoo_2_array = []
-points2d_cyberzoo_3_array = []
-
-points3d_cyberzoo_0_camera_array = []
-points3d_cyberzoo_1_camera_array = []
-points3d_cyberzoo_2_camera_array = []
-points3d_cyberzoo_3_camera_array = []
 
 times_list = []
 
@@ -79,40 +91,12 @@ for i in range(len(images.frame_files)):
     # Create the projection
     # Project the cyberzoo points
     # Convert points3d_cyberzoo elements to a numpy array of type float32 and reshape to have 3 channels
-    points2d_cyberzoo_0, points3d_cyberzoo_0_camera = camera_front.project_3D_to_2D(np.array(points3d_cyberzoo[0], dtype=np.float32).reshape(-1, 1, 3))
-
-    points2d_cyberzoo_1, points3d_cyberzoo_1_camera = camera_front.project_3D_to_2D(np.array(points3d_cyberzoo[1], dtype=np.float32).reshape(-1, 1, 3))
-    points2d_cyberzoo_2, points3d_cyberzoo_2_camera = camera_front.project_3D_to_2D(np.array(points3d_cyberzoo[2], dtype=np.float32).reshape(-1, 1, 3))
-    points2d_cyberzoo_3, points3d_cyberzoo_3_camera = camera_front.project_3D_to_2D(np.array(points3d_cyberzoo[3], dtype=np.float32).reshape(-1, 1, 3))
-
-
-    '''
-    points2d_cyberzoo_0 = camera_front.project_3D_to_2D_non_fisheye(np.array(points3d_cyberzoo[0], dtype=np.float32).reshape(-1, 1, 3))
-    points2d_cyberzoo_1 = camera_front.project_3D_to_2D_non_fisheye(np.array(points3d_cyberzoo[1], dtype=np.float32).reshape(-1, 1, 3))
-    points2d_cyberzoo_2 = camera_front.project_3D_to_2D_non_fisheye(np.array(points3d_cyberzoo[2], dtype=np.float32).reshape(-1, 1, 3))
-    points2d_cyberzoo_3 = camera_front.project_3D_to_2D_non_fisheye(np.array(points3d_cyberzoo[3], dtype=np.float32).reshape(-1, 1, 3))
-    '''
-    # Draw the points
-    images.draw_circle(points2d_cyberzoo_0[0][0], points2d_cyberzoo_0[0][1], radius=10, color=(0, 255, 0)) # Green
-    images.draw_circle(points2d_cyberzoo_1[0][0], points2d_cyberzoo_1[0][1], radius=10, color =(255,0,0) ) #Red
-    images.draw_circle(points2d_cyberzoo_2[0][0], points2d_cyberzoo_2[0][1], radius=10, color = (0,0,255)) #Blue
-    images.draw_circle(points2d_cyberzoo_3[0][0], points2d_cyberzoo_3[0][1], radius=10, color = (255, 255, 0)) #yellow
-    # Append the points to the array
-    points2d_cyberzoo_0_array.append(points2d_cyberzoo_0[0])
-    points2d_cyberzoo_1_array.append(points2d_cyberzoo_1[0])
-    points2d_cyberzoo_2_array.append(points2d_cyberzoo_2[0])
-    points2d_cyberzoo_3_array.append(points2d_cyberzoo_3[0])
-    
-
-    # Append the points to the array
-    points3d_cyberzoo_0_camera_array.append(points3d_cyberzoo_0_camera[0][0])
-    points3d_cyberzoo_1_camera_array.append(points3d_cyberzoo_1_camera[0][0])
-    points3d_cyberzoo_2_camera_array.append(points3d_cyberzoo_2_camera[0][0])
-    points3d_cyberzoo_3_camera_array.append(points3d_cyberzoo_3_camera[0][0])
+    points2D_cyberzoo_XYRGB, points3D_cyberzoo_camera_XYZRBG = camera_front.project_3D_to_2D(np.array(formatted_colored_points, dtype=np.float32).reshape(-1, 1, 6))
+    images.draw_circle(points2D_cyberzoo_XYRGB,radius=70)
 
     # Display the image
     if image_bool:
-        images.image_show(waitKeyvalue = 1)
+        images.image_show(waitKeyvalue = 100)
 
 times = np.array(times_list)
 sorted_indices = np.argsort(times)
