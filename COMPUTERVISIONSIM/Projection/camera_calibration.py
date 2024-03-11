@@ -23,6 +23,8 @@ image_files = glob.glob(os.path.join(folder_path, '*.jpg'))
 
 for image_file in image_files:
     img = cv2.imread(image_file)
+    # Rotate image 90 degrees counter clockwise
+    img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     # Find the chessboard corners
@@ -77,13 +79,12 @@ print("Fisheye distortion coefficients:\n", D)
 
 '''
 Fisheye camera matrix:
- [[324.25570292   0.          25.65423155]
- [  0.         323.60053988 265.75527519]
+ [[323.94986777   0.         265.6212057 ]
+ [  0.         324.58989285 213.41963136]
  [  0.           0.           1.        ]]
 Fisheye distortion coefficients:
- [[-0.02808937]
- [-0.04655074]
- [ 0.0786952 ]
- [-0.05046657]]
-
+ [[-0.03146083]
+ [-0.03191633]
+ [ 0.05678013]
+ [-0.04003636]]
 '''
