@@ -108,12 +108,7 @@ class Camera:
         T = np.array([[self.x_pos], [self.y_pos], [self.z_pos]])
         return T
 
-
-    '''
-    It is a fisheye camera, so the projection is different
-    make a method which takes a 3D point and returns the 2D point
-    '''
-    def point3DWorld_to_point3DCamera(self, point_3D):
+    def point3DWorld_to_point3D_Drone(self, point_3D):
         
         T = self.update_camera_translation_vector()
         R = self.update_camera_rotation_matrix()
@@ -139,7 +134,7 @@ class Camera:
         Tvec_null = np.zeros((3, 1), dtype=np.float32)
 
         points_2D_XYRGB_array = np.zeros((points_3D_World_XYZ_RGB_Array.shape[0], 5))
-        points_3D_camera_XYZRGB_array = np.zeros((points_3D_World_XYZ_RGB_Array.shape[0], 6))
+        points_3D_drone_XYZRGB_array = np.zeros((points_3D_World_XYZ_RGB_Array.shape[0], 6))
 
         for i in range((points_3D_World_XYZ_RGB_Array.shape[0])):
             # Extract XYZ
@@ -151,9 +146,9 @@ class Camera:
 
             # Apply transformation to project points from world to camera coordinates
             # The translation needs to be negated because we are moving the points to the camera's coordinate system
-            points_3D_camera = self.point3DWorld_to_point3DCamera(points_3D_World)
+            points_3D_drone = self.point3DWorld_to_point3D_Drone(points_3D_World)
             #print('points_3D_camera', points_3D_camera) 
-            points_3D_camera = np.array(points_3D_camera, dtype=np.float32).reshape(-1, 1, 3)
+            points_3D_drone = np.array(points_3D_drone, dtype=np.float32).reshape(-1, 1, 3)
             #print('points_3D_camera reshaped', points_3D_camera)
             # Pause run untill
 
@@ -171,15 +166,15 @@ class Camera:
             points_2D_RGB = np.concatenate((points_2D[0], RBG_values))
             #print('points_2D_RGB', points_2D_RGB)
             # Reattach the RGB values to the projected 3D points
-            points_3D_camera_RGB = np.concatenate((points_3D_camera[0][0], RBG_values))
+            points_3D_drone_RGB = np.concatenate((points_3D_drone[0][0], RBG_values))
             #print('points_3D_camera_RGB', points_3D_camera_RGB)
             
             # Append the projected 2D points to the array
             points_2D_XYRGB_array[i] = points_2D_RGB
-            points_3D_camera_XYZRGB_array[i] = points_3D_camera_RGB
+            points_3D_drone_XYZRGB_array[i] = points_3D_drone_RGB
 
 
-        return points_2D_XYRGB_array, points_3D_camera_XYZRGB_array
+        return points_2D_XYRGB_array, points_3D_drone_XYZRGB_array
 
 
 '''
