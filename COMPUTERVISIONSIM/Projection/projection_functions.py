@@ -51,10 +51,6 @@ class Camera:
                            [-0.03191633],
                            [ 0.05678013],
                            [-0.04003636]])
-        
-        
-        
-
 
     def update_state_vector(self, state_vector, time):
         state_vector_dict = state_vector.interpolate(time)
@@ -87,6 +83,11 @@ class Camera:
             else:
                 yaw = self.psi
             pitch = self.theta
+            # HARD CODED ~~~~~~~~~~~~~!!!!!!!!!!!!!!!!!!!!
+            pitch = 0
+            roll = 0
+
+
             Rx = np.array([[1, 0, 0],
                    [0, np.cos(roll), -np.sin(roll)],
                    [0, np.sin(roll), np.cos(roll)]])
@@ -143,21 +144,15 @@ class Camera:
             - Z : Forward
             '''
             point_3D_Drone = point_3D_Drone[0][0]
-            print('point_3D_Drone', point_3D_Drone)
             X_drone = point_3D_Drone[0]
-            print('X_drone', X_drone)
             Y_drone = point_3D_Drone[1]
-            print('Y_drone', Y_drone)
             Z_drone = point_3D_Drone[2]
-            print('Z_drone', Z_drone)
 
-            X_camera = Y_drone
+            X_camera = -Y_drone
             Y_camera = Z_drone
             Z_camera = X_drone
 
             point_3D_Camera = np.array([X_camera, Y_camera, Z_camera])
-
-            print('point_3D_Camera', point_3D_Camera)
 
             return point_3D_Camera
 
@@ -210,8 +205,6 @@ class Camera:
             # Append the projected 2D points to the array
             points_2D_XYRGB_array[i] = points_2D_RGB
             points_3D_drone_XYZRGB_array[i] = points_3D_drone_RGB
-
-        print('points_2D_XYRGB_array', points_2D_XYRGB_array)
         return points_2D_XYRGB_array, points_3D_drone_XYZRGB_array
 
 
@@ -469,7 +462,7 @@ class CyberZooStructure:
     def return_points3d(self):
         return [self.points3d_A, self.points3d_B, self.points3d_C, self.points3d_D]
     
-    def generate_line_points(self, start, end, num_points=60):
+    def generate_line_points(self, start, end, num_points=10):
         x_values = [start['x'] + (end['x'] - start['x']) * i / (num_points - 1) for i in range(num_points)]
         y_values = [start['y'] + (end['y'] - start['y']) * i / (num_points - 1) for i in range(num_points)]
         z_values = [start['z'] + (end['z'] - start['z']) * i / (num_points - 1) for i in range(num_points)]
@@ -514,6 +507,19 @@ class CyberZooStructure:
         formatted_colored_points = np.array([(*point, *color) for point, color in colored_perimeter_points]) # (X, Y, Z, R, G, B)
 
         return formatted_colored_points
+    
+    def plot_formatted_colored_points(self):
+        # Get the colored points
+        colored_points = self.get_colored_perimeter_points()
+
+        # Plot the points
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(colored_points[:, 0], colored_points[:, 1], colored_points[:, 2], c=colored_points[:, 3:]/255)
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+        plt.show()
 
 
 class VideoFeed:

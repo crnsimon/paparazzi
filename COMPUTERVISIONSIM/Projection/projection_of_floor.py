@@ -22,8 +22,8 @@ image_path = r'C:/Users/aname/Documents/GitHub/paparazzi/AE4317_2019_datasets/AE
 image_path = r"C:\Users\Jonathan van Zyl\Documents\GitHub\paparazzi\Data_gitignore\AE4317_2019_datasets\cyberzoo_poles_panels\20190121-140205"
 file_path = "Data_gitignore/AE4317_2019_datasets/cyberzoo_poles_panels/20190121-140303.csv"
 
-image_path = 'COMPUTERVISIONSIM/Projection/single_image/image'
-file_path = 'COMPUTERVISIONSIM/Projection/single_image/20190121-140303.csv'
+#image_path = 'COMPUTERVISIONSIM/Projection/single_image/image'
+#file_path = 'COMPUTERVISIONSIM/Projection/single_image/20190121-140303.csv'
 
 # Create a camera object
 camera_front = Camera()
@@ -36,6 +36,10 @@ cyberzoo = CyberZooStructure(zmin)
 points3d_cyberzoo = cyberzoo.return_points3d()
 #perimeterspoints_3dWorld_Cyberzoo = cyberzoo.get_perimeter_points()
 formatted_colored_points = cyberzoo.get_colored_perimeter_points()
+
+# Plot the cyberzoo points
+cyberzoo.plot_formatted_colored_points()
+
 
 # Load the image
 images = VideoFeed(image_path)
@@ -71,17 +75,9 @@ for i in range(len(images.frame_files)):
     points2D_cyberzoo_XYRGB, points3D_cyberzoo_camera_XYZRBG = camera_front.project_3D_to_2D(np.array(formatted_colored_points, dtype=np.float32).reshape(-1, 1, 6), fisheye_bool = True)
     images.draw_circle(points2D_cyberzoo_XYRGB,radius=10)
 
-    print('theta_camera', theta_camera)
-    print('phi_camera', phi_camera)
-    print('psi_camera', psi_camera)
-    print('x_pos_camera', x_pos_camera)
-    print('y_pos_camera', y_pos_camera)
-    print('z_pos_camera', z_pos_camera)
-
-
     # Display the image
     if image_bool:
-        images.image_show(waitKeyvalue = 1000000)
+        images.image_show(waitKeyvalue = 100)
 
 
 
