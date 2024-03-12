@@ -40,6 +40,9 @@ class Camera:
                               [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
 
         self.D_nonfisheye = np.array([[7.49344678e-01, -5.89979880e+01, 1.67460462e-01, -7.29040201e-02, 4.51276257e+02]])
+
+
+        
         
         self.K = np.array([[323.94986777, 0, 265.6212057 ],
                            [ 0, 324.58989285, 213.41963136],
@@ -62,6 +65,7 @@ class Camera:
         self.theta = state_vector_dict['theta']
         self.psi = state_vector_dict['psi']
         self.phi = state_vector_dict['phi']
+
         # if state_vector_dict['psi'] < 0:
         #     self.psi = 2 * np.pi + state_vector_dict['psi']
         # else:
@@ -124,8 +128,38 @@ class Camera:
 
         point_3D_rotated = R @ point_3D_translated
 
-        
         return point_3D_rotated
+
+    def point3DDrone_to_point3DCamera(self, point_3D_Drone):
+            '''
+            Drone Frame (a/c frame):
+            - X : Forward
+            - Y : Right (maybe left)
+            - Z : Down
+
+            Camera Frame:
+            - X : Right
+            - Y : Down
+            - Z : Forward
+            '''
+            point_3D_Drone = point_3D_Drone[0][0]
+            print('point_3D_Drone', point_3D_Drone)
+            X_drone = point_3D_Drone[0]
+            print('X_drone', X_drone)
+            Y_drone = point_3D_Drone[1]
+            print('Y_drone', Y_drone)
+            Z_drone = point_3D_Drone[2]
+            print('Z_drone', Z_drone)
+
+            X_camera = Y_drone
+            Y_camera = Z_drone
+            Z_camera = X_drone
+
+            point_3D_Camera = np.array([X_camera, Y_camera, Z_camera])
+
+            print('point_3D_Camera', point_3D_Camera)
+
+            return point_3D_Camera
 
     def project_3D_to_2D(self, points_3D_World_XYZ_RGB_Array, fisheye_bool = False):
         # (N, 6) array with columns [X, Y, Z, R, G, B].
@@ -152,6 +186,10 @@ class Camera:
             #print('points_3D_camera reshaped', points_3D_camera)
             # Pause run untill
 
+            points_3D_camera = self.point3DDrone_to_point3DCamera(points_3D_drone)
+            points_3D_camera = np.array(points_3D_camera, dtype=np.float32).reshape(-1, 1, 3)
+            #print('points_3D_camera', points_3D_camera)
+
             #D_truncated = self.D[:, :4]
             if fisheye_bool:
                 points_2D, _ = cv2.fisheye.projectPoints(points_3D_camera, rvec_null, Tvec_null, self.K, self.D)
@@ -173,7 +211,7 @@ class Camera:
             points_2D_XYRGB_array[i] = points_2D_RGB
             points_3D_drone_XYZRGB_array[i] = points_3D_drone_RGB
 
-
+        print('points_2D_XYRGB_array', points_2D_XYRGB_array)
         return points_2D_XYRGB_array, points_3D_drone_XYZRGB_array
 
 
@@ -431,7 +469,7 @@ class CyberZooStructure:
     def return_points3d(self):
         return [self.points3d_A, self.points3d_B, self.points3d_C, self.points3d_D]
     
-    def generate_line_points(self, start, end, num_points=100):
+    def generate_line_points(self, start, end, num_points=60):
         x_values = [start['x'] + (end['x'] - start['x']) * i / (num_points - 1) for i in range(num_points)]
         y_values = [start['y'] + (end['y'] - start['y']) * i / (num_points - 1) for i in range(num_points)]
         z_values = [start['z'] + (end['z'] - start['z']) * i / (num_points - 1) for i in range(num_points)]

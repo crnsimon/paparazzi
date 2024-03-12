@@ -64,11 +64,20 @@ for i in range(len(images.frame_files)):
     x_pos_camera.append(camera_front.x_pos); y_pos_camera.append(camera_front.y_pos); z_pos_camera.append(camera_front.z_pos)
     theta_camera.append(camera_front.theta); phi_camera.append(camera_front.phi); psi_camera.append(camera_front.psi)
 
+
     # Create the projection
     # Project the cyberzoo points
     # Convert points3d_cyberzoo elements to a numpy array of type float32 and reshape to have 3 channels
     points2D_cyberzoo_XYRGB, points3D_cyberzoo_camera_XYZRBG = camera_front.project_3D_to_2D(np.array(formatted_colored_points, dtype=np.float32).reshape(-1, 1, 6), fisheye_bool = True)
     images.draw_circle(points2D_cyberzoo_XYRGB,radius=10)
+
+    print('theta_camera', theta_camera)
+    print('phi_camera', phi_camera)
+    print('psi_camera', psi_camera)
+    print('x_pos_camera', x_pos_camera)
+    print('y_pos_camera', y_pos_camera)
+    print('z_pos_camera', z_pos_camera)
+
 
     # Display the image
     if image_bool:
