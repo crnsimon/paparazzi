@@ -23,6 +23,8 @@ image_files = glob.glob(os.path.join(folder_path, '*.jpg'))
 
 for image_file in image_files:
     img = cv2.imread(image_file)
+    # Rotate image 90 degrees counter clockwise
+    img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     # Find the chessboard corners
@@ -35,55 +37,56 @@ for image_file in image_files:
         # Draw and display the corners
         cv2.drawChessboardCorners(img, chessboard_size, corners, ret)
         cv2.imshow('Chessboard Corners', img)
-        cv2.waitKey(500)
+        cv2.waitKey(1)
 
 cv2.destroyAllWindows()
 
-'''
-# Perform camera calibration
-ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
+fisheyecamera = False
+if not fisheyecamera:
 
-# Display the camera matrix and distortion coefficients
-print("Camera matrix:\n", mtx)
-print("Distortion coefficients:\n", dist)
-'''
+    # Perform camera calibration
+    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
 
-# Calibrate fisheye camera
-N_OK = len(objpoints)
-K = np.zeros((3, 3))
-D = np.zeros((4, 1))
-rvecs = [np.zeros((1, 1, 3), dtype=np.float64) for i in range(N_OK)]
-tvecs = [np.zeros((1, 1, 3), dtype=np.float64) for i in range(N_OK)]
+    # Display the camera matrix and distortion coefficients
+    print("Camera matrix:\n", mtx)
+    print("Distortion coefficients:\n", dist)
 
-# Convert objpoints to a numpy array of type float32 and reshape to have 3 channels
-objpoints = [np.array(op, dtype=np.float32).reshape(-1, 1, 3) for op in objpoints]
+else:
+    # Calibrate fisheye camera
+    N_OK = len(objpoints)
+    K = np.zeros((3, 3))
+    D = np.zeros((4, 1))
+    rvecs = [np.zeros((1, 1, 3), dtype=np.float64) for i in range(N_OK)]
+    tvecs = [np.zeros((1, 1, 3), dtype=np.float64) for i in range(N_OK)]
+
+    # Convert objpoints to a numpy array of type float32 and reshape to have 3 channels
+    objpoints = [np.array(op, dtype=np.float32).reshape(-1, 1, 3) for op in objpoints]
 
 
-retval, K, D, rvecs, tvecs = cv2.fisheye.calibrate(
-    objpoints,
-    imgpoints,
-    gray.shape[::-1],
-    K,
-    D,
-    rvecs,
-    tvecs,
-    cv2.fisheye.CALIB_RECOMPUTE_EXTRINSIC + cv2.fisheye.CALIB_CHECK_COND + cv2.fisheye.CALIB_FIX_SKEW,
-    criteria=(cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 1e-6)
-)
+    retval, K, D, rvecs, tvecs = cv2.fisheye.calibrate(
+        objpoints,
+        imgpoints,
+        gray.shape[::-1],
+        K,
+        D,
+        rvecs,
+        tvecs,
+        cv2.fisheye.CALIB_RECOMPUTE_EXTRINSIC + cv2.fisheye.CALIB_CHECK_COND + cv2.fisheye.CALIB_FIX_SKEW,
+        criteria=(cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 1e-6)
+    )
 
-print("Fisheye camera matrix:\n", K)
-print("Fisheye distortion coefficients:\n", D)
+    print("Fisheye camera matrix:\n", K)
+    print("Fisheye distortion coefficients:\n", D)
 
 
 '''
 Fisheye camera matrix:
- [[324.25570292   0.          25.65423155]
- [  0.         323.60053988 265.75527519]
+ [[323.94986777   0.         265.6212057 ]
+ [  0.         324.58989285 213.41963136]
  [  0.           0.           1.        ]]
 Fisheye distortion coefficients:
- [[-0.02808937]
- [-0.04655074]
- [ 0.0786952 ]
- [-0.05046657]]
-
+ [[-0.03146083]
+ [-0.03191633]
+ [ 0.05678013]
+ [-0.04003636]]
 '''

@@ -19,34 +19,75 @@ class Camera:
         self.theta = 0
         self.psi = 0
         self.phi = 0
+        
+        '''
         self.K_nonfisheye = np.array([[589.98363697,   0,         117.18359156],
                            [  0,         600.54137529, 261.48275908],
                            [  0,           0,           1        ]])
         
         self.D_nonfisheye = np.array([[-0.32043809,  0.27653614, -0.06730844, -0.04503392, -2.50539621]])
-
+        
+        
         self.K = np.array([[324.25570292,   0,          25.65423155],
                    [  0,         323.60053988, 265.75527519],
                    [  0,           0,           1.        ]])
 
         self.D = np.array([[-0.02808937, -0.04655074, 0.0786952, -0.05046657]])
+        '''
+        # N.B. The nonfisheye take 8,6 on checkborad better to do 9,6 : but my laptop is not powerful enough
+        self.K_nonfisheye = np.array([[1.06848861e+03, 0.00000000e+00, 2.43338041e+02],
+                              [0.00000000e+00, 1.54122474e+03, 1.22209857e+02],
+                              [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
+
+        self.D_nonfisheye = np.array([[7.49344678e-01, -5.89979880e+01, 1.67460462e-01, -7.29040201e-02, 4.51276257e+02]])
 
 
+        
+        
+        self.K = np.array([[323.94986777, 0, 265.6212057 ],
+                           [ 0, 324.58989285, 213.41963136],
+                           [ 0, 0, 1 ]] )
+        self.D = np.array([[-0.03146083],
+                           [-0.03191633],
+                           [ 0.05678013],
+                           [-0.04003636]])
 
     def update_state_vector(self, state_vector, time):
         state_vector_dict = state_vector.interpolate(time)
         self.x_pos = state_vector_dict['x_pos']
         self.y_pos = state_vector_dict['y_pos']
         self.z_pos = state_vector_dict['z_pos']
+
         self.theta = state_vector_dict['theta']
         self.psi = state_vector_dict['psi']
         self.phi = state_vector_dict['phi']
+
+        # if state_vector_dict['psi'] < 0:
+        #     self.psi = 2 * np.pi + state_vector_dict['psi']
+        # else:
+        #     self.psi = state_vector_dict['psi']
+        # if state_vector_dict['phi'] < 0:
+        #     self.psi = 2 * np.pi + state_vector_dict['phi']
+        # else:
+        #     self.phi = state_vector_dict['phi']
         return None
 
     def update_camera_rotation_matrix(self):
-            roll = self.phi
+            # Converting from [-pi, pi] to [0, 2pi]:
+            if self.phi < 0:
+                roll = 2 * np.pi + self.phi
+            else:
+                roll = self.phi
+            if self.psi < 0:
+                yaw = 2 * np.pi + self.psi
+            else:
+                yaw = self.psi
             pitch = self.theta
-            yaw = self.psi
+            # HARD CODED ~~~~~~~~~~~~~!!!!!!!!!!!!!!!!!!!!
+            pitch = 0
+            roll = 0
+
+
             Rx = np.array([[1, 0, 0],
                    [0, np.cos(roll), -np.sin(roll)],
                    [0, np.sin(roll), np.cos(roll)]])
@@ -72,70 +113,125 @@ class Camera:
         T = np.array([[self.x_pos], [self.y_pos], [self.z_pos]])
         return T
 
-
-    '''
-    It is a fisheye camera, so the projection is different
-    make a method which takes a 3D point and returns the 2D point
-    '''
-    def point3DWorld_to_point3DCamera(self, point_3D):
-        rvec = self.update_rotation_vector()
+    def point3DWorld_to_point3D_Drone(self, point_3D):
+        
         T = self.update_camera_translation_vector()
         R = self.update_camera_rotation_matrix()
 
-        # Given 3D point in world coordinates
-        Points3D = np.squeeze(point_3D)
+        point_3D = point_3D[0][0]
+        T = T.T[0]
 
-        # Convert Points3D to a column vector
-        Points3D_column = Points3D.reshape(-1, 1)
 
-        # Apply the translation
-        translated_point = Points3D_column - T
+        point_3D_translated = point_3D - T
+        point_3D_translated = point_3D_translated[np.newaxis, :]
+        point_3D_translated = point_3D_translated.T
 
-        # Apply the rotation matrix R to get the camera coordinates
-        Points3D_camera = R @ translated_point
-        return Points3D_camera
 
-    def project_3D_to_2D(self, points_3D_World):
-        rvec = self.update_rotation_vector()
-        T = self.update_camera_translation_vector()
+        point_3D_rotated = R @ point_3D_translated
 
-        # Apply transformation to project points from world to camera coordinates
-        # The translation needs to be negated because we are moving the points to the camera's coordinate system
-        points_3D_camera = self.point3DWorld_to_point3DCamera(points_3D_World)
-        points_3D_camera = np.array(points_3D_camera, dtype=np.float32).reshape(-1, 1, 3)
-        #D_truncated = self.D[:, :4]
-        points_2D, _ = cv2.fisheye.projectPoints(points_3D_camera, rvec, np.zeros((3,1)), self.K, self.D)
-        points_2D = points_2D.reshape(-1, 2)
-        return points_2D, points_3D_camera
-    
-    def project_3D_to_2D_non_fisheye(self, points_3D):
-        """
-        Project 3D points to 2D image plane using a non-fisheye (pinhole) camera model.
+        return point_3D_rotated
 
-        Args:
-            points_3D (np.ndarray): Array of 3D points in the world coordinate system, shape (N, 3).
-            rvec (np.ndarray): Rotation vector representing the orientation of the camera, shape (3,).
-            tvec (np.ndarray): Translation vector representing the position of the camera, shape (3,).
-            camera_matrix (np.ndarray): Camera matrix (intrinsic parameters), shape (3, 3).
-            dist_coeffs (np.ndarray): Distortion coefficients, shape (5, 1).
+    def point3DDrone_to_point3DCamera(self, point_3D_Drone):
+            '''
+            Drone Frame (a/c frame):
+            - X : Forward
+            - Y : Right (maybe left)
+            - Z : Down
 
-        Returns:
-            np.ndarray: Array of projected 2D points on the image plane, shape (N, 2).
-        """
-        rvec = self.update_rotation_vector()
-        T = self.update_camera_translation_vector()
+            Camera Frame:
+            - X : Right
+            - Y : Down
+            - Z : Forward
+            '''
+            point_3D_Drone = point_3D_Drone[0][0]
+            X_drone = point_3D_Drone[0]
+            Y_drone = point_3D_Drone[1]
+            Z_drone = point_3D_Drone[2]
 
-        # Ensure points_3D is in the correct shape (N, 1, 3)
-        points_3D = np.array(points_3D, dtype=np.float32).reshape(-1, 1, 3)
+            X_camera = -Y_drone
+            Y_camera = Z_drone
+            Z_camera = X_drone
 
-        # Project 3D points to the 2D image plane
-        points_2D, _ = cv2.projectPoints(points_3D, rvec, T, self.K_nonfisheye, self.D_nonfisheye)
+            point_3D_Camera = np.array([X_camera, Y_camera, Z_camera])
 
-        # Reshape points_2D to (N, 2) for convenience
-        points_2D = points_2D.reshape(-1, 2)
+            return point_3D_Camera
 
-        return points_2D
+    def project_3D_to_2D(self, points_3D_World_XYZ_RGB_Array, fisheye_bool = False):
+        # (N, 6) array with columns [X, Y, Z, R, G, B].
+        # Extract X, Y, Z
+        rvec_null = np.zeros((3, 1), dtype=np.float32)
+        Tvec_null = np.zeros((3, 1), dtype=np.float32)
 
+        points_2D_XYRGB_array = np.zeros((points_3D_World_XYZ_RGB_Array.shape[0], 5))
+        points_3D_drone_XYZRGB_array = np.zeros((points_3D_World_XYZ_RGB_Array.shape[0], 6))
+
+        for i in range((points_3D_World_XYZ_RGB_Array.shape[0])):
+            # Extract XYZ
+            #print('points_3D_World_XYZ_RGB_Array', points_3D_World_XYZ_RGB_Array[i])
+            points_3D_World = np.array([points_3D_World_XYZ_RGB_Array[i][0][:3]])
+            #print('points_3D_World', points_3D_World)
+            points_3D_World = np.array(points_3D_World, dtype=np.float32).reshape(-1, 1, 3)
+            #print('points_3D_World reshaped', points_3D_World)
+
+            # Apply transformation to project points from world to camera coordinates
+            # The translation needs to be negated because we are moving the points to the camera's coordinate system
+            points_3D_drone = self.point3DWorld_to_point3D_Drone(points_3D_World)
+            #print('points_3D_camera', points_3D_camera) 
+            points_3D_drone = np.array(points_3D_drone, dtype=np.float32).reshape(-1, 1, 3)
+            #print('points_3D_camera reshaped', points_3D_camera)
+            # Pause run untill
+
+            points_3D_camera = self.point3DDrone_to_point3DCamera(points_3D_drone)
+            points_3D_camera = np.array(points_3D_camera, dtype=np.float32).reshape(-1, 1, 3)
+            #print('points_3D_camera', points_3D_camera)
+
+            #D_truncated = self.D[:, :4]
+            if fisheye_bool:
+                points_2D, _ = cv2.fisheye.projectPoints(points_3D_camera, rvec_null, Tvec_null, self.K, self.D)
+            else:
+                points_2D, _ = cv2.projectPoints(points_3D_camera, rvec_null, Tvec_null, self.K_nonfisheye, self.D_nonfisheye)
+                # This gives awfull values.
+            
+            points_2D = points_2D.reshape(-1, 2)
+
+            # Reattach the RGB values to the projected 2D points
+            RBG_values = np.array(points_3D_World_XYZ_RGB_Array[i][0][3:])
+            points_2D_RGB = np.concatenate((points_2D[0], RBG_values))
+            #print('points_2D_RGB', points_2D_RGB)
+            # Reattach the RGB values to the projected 3D points
+            points_3D_drone_RGB = np.concatenate((points_3D_drone[0][0], RBG_values))
+            #print('points_3D_camera_RGB', points_3D_camera_RGB)
+            
+            # Append the projected 2D points to the array
+            points_2D_XYRGB_array[i] = points_2D_RGB
+            points_3D_drone_XYZRGB_array[i] = points_3D_drone_RGB
+        return points_2D_XYRGB_array, points_3D_drone_XYZRGB_array
+
+
+'''
+Non Fisheye
+points_3D_World_XYZ_RGB_Array [[3.5000e+00 3.5000e+00 4.6875e-02 0.0000e+00 2.5500e+02 0.0000e+00]]
+points_3D_World [[3.5      3.5      0.046875]]
+points_3D_World reshaped [[[3.5      3.5      0.046875]]]
+points_3D_camera [[0.89479161]
+ [5.62572748]
+ [1.10271088]]
+points_3D_camera reshaped [[[0.8947916 5.6257277 1.1027108]]]
+points_2D_RGB [7.3993492e+09 6.7103715e+10 0.0000000e+00 2.5500000e+02 0.0000000e+00]
+points_3D_camera_RGB [  0.8947916   5.6257277   1.1027108   0.        255.          0.       ]
+
+
+
+points_3D_World_XYZ_RGB_Array [[3.5000e+00 3.5000e+00 4.6875e-02 0.0000e+00 2.5500e+02 0.0000e+00]]
+points_3D_World [[3.5      3.5      0.046875]]
+points_3D_World reshaped [[[3.5      3.5      0.046875]]]
+points_3D_camera [[0.89479161]
+ [5.62572748]
+ [1.10271088]]
+points_3D_camera reshaped [[[0.8947916 5.6257277 1.1027108]]]
+points_2D_RGB [314.10422 518.844     0.      255.        0.     ]
+points_3D_camera_RGB [  0.8947916   5.6257277   1.1027108   0.        255.          0.       ]
+'''
     
 
         
@@ -274,6 +370,14 @@ class CyberZooStructure:
         self.points3d_C = [self.corner_coordinates['C']['x'], self.corner_coordinates['C']['y'], self.corner_coordinates['C']['z']]
         self.points3d_D = [self.corner_coordinates['D']['x'], self.corner_coordinates['D']['y'], self.corner_coordinates['D']['z']]
 
+        # Define the RGB color codes for each corner
+        self.corner_colors = {
+            'A': (0, 255, 0),  # Green
+            'B': (255, 0, 0),  # Red
+            'C': (0, 0, 255),  # Blue
+            'D': (255, 255, 0)  # Yellow
+        }
+
         self.wall_height = 4 #m
         self.corner_upper_coordinates = {
             'A': {'x' : self.cyberzoo_green_width/2,
@@ -357,6 +461,65 @@ class CyberZooStructure:
 
     def return_points3d(self):
         return [self.points3d_A, self.points3d_B, self.points3d_C, self.points3d_D]
+    
+    def generate_line_points(self, start, end, num_points=10):
+        x_values = [start['x'] + (end['x'] - start['x']) * i / (num_points - 1) for i in range(num_points)]
+        y_values = [start['y'] + (end['y'] - start['y']) * i / (num_points - 1) for i in range(num_points)]
+        z_values = [start['z'] + (end['z'] - start['z']) * i / (num_points - 1) for i in range(num_points)]
+        return [[x, y, z] for x, y, z in zip(x_values, y_values, z_values)]
+
+    def get_perimeter_points(self):
+        # Lines between A -> B -> C -> D -> A
+        AB_points = self.generate_line_points(self.corner_coordinates['A'], self.corner_coordinates['B'])
+        BC_points = self.generate_line_points(self.corner_coordinates['B'], self.corner_coordinates['C'])
+        CD_points = self.generate_line_points(self.corner_coordinates['C'], self.corner_coordinates['D'])
+        DA_points = self.generate_line_points(self.corner_coordinates['D'], self.corner_coordinates['A'])
+
+        # Combine all points, avoiding duplication of corner points
+        perimeter_points = AB_points + BC_points[1:] + CD_points[1:] + DA_points[1:]
+        return perimeter_points
+    
+    # Define a function to blend colors based on the proportion of the distance between two corners
+    def blend_colors(self, color1, color2, blend_factor):
+        return tuple(color1[i] + (color2[i] - color1[i]) * blend_factor for i in range(3))
+
+    # Add color information to each point based on its position along each line
+    def add_color_to_points(self, points, start_color, end_color):
+        num_points = len(points)
+        colored_points = []
+        for i, point in enumerate(points):
+            blend_factor = i / (num_points - 1)
+            color = self.blend_colors(start_color, end_color, blend_factor)
+            colored_points.append((point, color))
+        return colored_points
+
+    def get_colored_perimeter_points(self):
+        # Get colored points for each line
+        AB_colored_points = self.add_color_to_points(self.generate_line_points(self.corner_coordinates['A'], self.corner_coordinates['B']), self.corner_colors['A'], self.corner_colors['B'])
+        BC_colored_points = self.add_color_to_points(self.generate_line_points(self.corner_coordinates['B'], self.corner_coordinates['C'])[1:], self.corner_colors['B'], self.corner_colors['C'])
+        CD_colored_points = self.add_color_to_points(self.generate_line_points(self.corner_coordinates['C'], self.corner_coordinates['D'])[1:], self.corner_colors['C'], self.corner_colors['D'])
+        DA_colored_points = self.add_color_to_points(self.generate_line_points(self.corner_coordinates['D'], self.corner_coordinates['A'])[1:], self.corner_colors['D'], self.corner_colors['A'])
+
+        # Combine all colored points
+        colored_perimeter_points = AB_colored_points + BC_colored_points + CD_colored_points + DA_colored_points
+
+        # Convert to a more friendly format for display
+        formatted_colored_points = np.array([(*point, *color) for point, color in colored_perimeter_points]) # (X, Y, Z, R, G, B)
+
+        return formatted_colored_points
+    
+    def plot_formatted_colored_points(self):
+        # Get the colored points
+        colored_points = self.get_colored_perimeter_points()
+
+        # Plot the points
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(colored_points[:, 0], colored_points[:, 1], colored_points[:, 2], c=colored_points[:, 3:]/255)
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+        plt.show()
 
 
 class VideoFeed:
@@ -378,14 +541,35 @@ class VideoFeed:
         return None
 
     
-    def image_show(self, waitKeyvalue = 100):
+    def image_show(self, waitKeyvalue = 100, max_size  = 1500):
+        cv2.namedWindow('Image', cv2.WINDOW_NORMAL)
+        
+        # Get the original image size
+        height, width = self.image_current.shape[:2]
+        
+        # Calculate the new size while keeping the same aspect ratio
+        scale = max_size / max(height, width)
+        new_width = int(scale * width)
+        new_height = int(scale * height)
+        
+        cv2.resizeWindow('Image', new_width, new_height)
         cv2.imshow('Image', self.image_current)
         cv2.waitKey(waitKeyvalue)
         return None
-    
+    '''
     def draw_circle(self, x_coordinate, y_coordinate, radius=100, color=(0, 255, 0), thickness=-1):
         cv2.circle(self.image_current, (int(x_coordinate), int(y_coordinate)), radius, color, thickness)
         return None
+    '''
+    def draw_circle(self, points_2D_RGB, radius=100, thickness=-1):
+        for point in points_2D_RGB:
+            x_coordinate, y_coordinate = point[:2]
+            color = tuple([int(c) for c in point[2:5]])
+            #print('color:', color, 'type:', type(color))
+            cv2.circle(self.image_current, (int(x_coordinate), int(y_coordinate)), radius, color, thickness)
+        return None
+
+
     
     def number_of_images(self):
         return len(self.images)
@@ -536,3 +720,4 @@ class OpticalFlow:
 
         return edges, mask_rgb_no_green
         
+
