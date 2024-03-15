@@ -21,37 +21,43 @@ class Camera:
         self.phi = 0
         
         '''
-        self.K_nonfisheye = np.array([[589.98363697,   0,         117.18359156],
-                           [  0,         600.54137529, 261.48275908],
-                           [  0,           0,           1        ]])
-        
-        self.D_nonfisheye = np.array([[-0.32043809,  0.27653614, -0.06730844, -0.04503392, -2.50539621]])
-        
-        
-        self.K = np.array([[324.25570292,   0,          25.65423155],
-                   [  0,         323.60053988, 265.75527519],
-                   [  0,           0,           1.        ]])
-
-        self.D = np.array([[-0.02808937, -0.04655074, 0.0786952, -0.05046657]])
-        '''
+        Fisheye camera matrix:
+        [[323.94986754   0.         265.62119192]
+        [  0.         324.58989514 213.41962432]
+        [  0.           0.           1.        ]]
+        Fisheye distortion coefficients:
+        [[-0.03146082]
+        [-0.03191633]
+        [ 0.05678008]
+        [-0.04003633]]
+                '''
         # N.B. The nonfisheye take 8,6 on checkborad better to do 9,6 : but my laptop is not powerful enough
         self.K_nonfisheye = np.array([[1.06848861e+03, 0.00000000e+00, 2.43338041e+02],
                               [0.00000000e+00, 1.54122474e+03, 1.22209857e+02],
                               [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
-
+    
         self.D_nonfisheye = np.array([[7.49344678e-01, -5.89979880e+01, 1.67460462e-01, -7.29040201e-02, 4.51276257e+02]])
-
-
-        
         
         self.K = np.array([[323.94986777, 0, 265.6212057 ],
                            [ 0, 324.58989285, 213.41963136],
                            [ 0, 0, 1 ]] )
+        
+        self.K = np.array([[323.94986777, 0, 265 ],
+                           [ 0, 324.58989285, 213],
+                           [ 0, 0, 1 ]] )
+        
         self.D = np.array([[-0.03146083],
                            [-0.03191633],
                            [ 0.05678013],
                            [-0.04003636]])
-
+        
+        self.D = np.array([[-0.031],
+                           [-0.032],
+                           [ 0.057],
+                           [-0.040]])
+    
+        
+        
     def update_state_vector(self, state_vector, time):
         state_vector_dict = state_vector.interpolate(time)
         self.x_pos = state_vector_dict['x_pos']
@@ -147,8 +153,8 @@ class Camera:
             X_drone = point_3D_Drone[0]
             Y_drone = point_3D_Drone[1]
             Z_drone = point_3D_Drone[2]
-
-            X_camera = -Y_drone
+            
+            X_camera = Y_drone
             Y_camera = Z_drone
             Z_camera = X_drone
 
@@ -188,11 +194,13 @@ class Camera:
             #D_truncated = self.D[:, :4]
             if fisheye_bool:
                 points_2D, _ = cv2.fisheye.projectPoints(points_3D_camera, rvec_null, Tvec_null, self.K, self.D)
+                
             else:
                 points_2D, _ = cv2.projectPoints(points_3D_camera, rvec_null, Tvec_null, self.K_nonfisheye, self.D_nonfisheye)
                 # This gives awfull values.
-            
+            print('points_2D', points_2D)
             points_2D = points_2D.reshape(-1, 2)
+            print('points_2Da', points_2D)
 
             # Reattach the RGB values to the projected 2D points
             RBG_values = np.array(points_3D_World_XYZ_RGB_Array[i][0][3:])
@@ -529,6 +537,8 @@ class VideoFeed:
         self.images = glob.glob(frames_dir + '/*.jpg')
         self.index = 0
         self.image_current = self.image_read(self.index)
+        self.image_current_gray = cv2.cvtColor(self.image_current, cv2.COLOR_BGR2GRAY)
+        self.image_current_undistorted = self.image_current
 
     def image_read(self, index = 0):
         self.index = index
@@ -624,9 +634,72 @@ class VideoFeed:
         # XXXXXXXX.jpg -> SS.XXXXXX jpg SS is seconds i.e. 60483805.jpg -> 60.483805 seconds
         time = int(self.frame_files[self.index].split('.')[0])/1000000
         return time
+
+    def green_filter(self, lower_green=np.array([30, 30, 30]), upper_green=np.array([90, 255, 255]), kernel_size=(50,50), canny_thresholds=(100, 200)):    
+        # Convert BGR to HSV
+        hsv = cv2.cvtColor(self.image_current, cv2.COLOR_BGR2HSV)
+
+        # Apply CLAHE
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        for i in range(hsv.shape[-1]):
+            hsv[:,:,i] = clahe.apply(hsv[:,:,i])
+
+        # Threshold the HSV image to get only green colors
+        green_mask = cv2.inRange(hsv, lower_green, upper_green)
+
+        # Define a kernel for the morphological operations
+        kernel = np.ones(kernel_size, np.uint8)
+
+        # Apply dilation and erosion to smooth the mask
+        green_mask = cv2.morphologyEx(green_mask, cv2.MORPH_CLOSE, kernel)
+
+        # Invert the mask
+        green_mask_inv = cv2.bitwise_not(green_mask)
+
+        # Bitwise-AND mask and original image (optional, to highlight green areas)
+        result = cv2.bitwise_and(self.image_current, self.image_current, mask=green_mask_inv)
+
+        # Display the original and result images
+        stack_frames = np.vstack((self.image_current, result))
+        cv2.imshow('Green Removed', stack_frames)
+
+        # Show image with no green
+        cv2.imshow('No Green', result)
+
+        return None
     
+    def Undistort(self, K, D):
+        # Undistort the image
+        self.image_current_undistorted = cv2.undistort(self.image_current, K, D, None, K)
+        return None
 
+    def show_undistorted(self, waitKeyvalue = 100, max_size  = 1500):
+        cv2.namedWindow('Undistorted', cv2.WINDOW_NORMAL)
 
+        # Stack the original and undistorted images
+        stack_frames = np.vstack((self.image_current, self.image_current_undistorted))
+        
+        # Get the original image size
+        height, width = self.image_current_undistorted.shape[:2]
+        
+        # Calculate the new size while keeping the same aspect ratio
+        scale = max_size / max(height, width)
+        new_width = int(scale * width)
+        new_height = int(scale * height)
+        
+        cv2.resizeWindow('Undistorted', new_width, new_height*2)
+
+        cv2.imshow('Undistorted', stack_frames)
+        cv2.waitKey(waitKeyvalue)
+        return None
+    
+    def draw_circle_undistorted(self, points_2D_RGB, radius=100, thickness=-1):
+        for point in points_2D_RGB:
+            x_coordinate, y_coordinate = point[:2]
+            color = tuple([int(c) for c in point[2:5]])
+            #print('color:', color, 'type:', type(color))
+            cv2.circle(self.image_current_undistorted, (int(x_coordinate), int(y_coordinate)), radius, color, thickness)
+        return None
 
 class OpticalFlow:
     def __init__(self, frame1, frame2):
@@ -719,5 +792,3 @@ class OpticalFlow:
         cv2.imshow('Edges', edges)
 
         return edges, mask_rgb_no_green
-        
-

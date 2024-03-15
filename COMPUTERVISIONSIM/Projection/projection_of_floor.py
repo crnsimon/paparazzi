@@ -38,7 +38,8 @@ points3d_cyberzoo = cyberzoo.return_points3d()
 formatted_colored_points = cyberzoo.get_colored_perimeter_points()
 
 # Plot the cyberzoo points
-cyberzoo.plot_formatted_colored_points()
+if plot_bool:
+    cyberzoo.plot_formatted_colored_points()
 
 
 # Load the image
@@ -46,6 +47,39 @@ images = VideoFeed(image_path)
 # Rotate the image
 images.image_rotate_90_counter()
 
+# Loop over images and undistort them
+# Create a list to store the undistorted images
+fisheye_bool = False
+if fisheye_bool == True:
+    K = np.array([[323.94986777, 0, 265.6212057 ],
+                  [ 0, 324.58989285, 213.41963136],
+                  [ 0, 0, 1 ]])
+        
+    D = np.array([[-0.03146083],
+                  [-0.03191633],
+                  [ 0.05678013],
+                  [-0.04003636]])
+else:
+    K = np.array([[1.06848861e+03, 0.00000000e+00, 2.43338041e+02],
+                              [0.00000000e+00, 1.54122474e+03, 1.22209857e+02],
+                              [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
+    
+    D = np.array([[7.49344678e-01, -5.89979880e+01, 1.67460462e-01, -7.29040201e-02, 4.51276257e+02]])
+        
+'''
+undistorted_images = []
+for i in range(len(images.frame_files)):
+    images.index = i
+    images.image_current = images.image_read(i)
+    images.image_rotate_90_counter()
+    # Undistort the image
+    images.Undistort(K, D)
+    undistorted_images.append(images.image_current_undistorted)
+    # Display the image
+    image_bool = True
+    if image_bool:
+        images.show_undistorted(waitKeyvalue = 100)
+'''
 
 # Loop over the images
 x_pos_camera = []
@@ -60,6 +94,8 @@ for i in range(len(images.frame_files)):
     images.index = i
     images.image_current = images.image_read(i)
     images.image_rotate_90_counter()
+
+
     
     time = images.find_time()
     times_list.append(time)
@@ -75,9 +111,15 @@ for i in range(len(images.frame_files)):
     points2D_cyberzoo_XYRGB, points3D_cyberzoo_camera_XYZRBG = camera_front.project_3D_to_2D(np.array(formatted_colored_points, dtype=np.float32).reshape(-1, 1, 6), fisheye_bool = True)
     images.draw_circle(points2D_cyberzoo_XYRGB,radius=10)
 
-    # Display the image
+    images.Undistort(K, D)
+    images.draw_circle_undistorted(points2D_cyberzoo_XYRGB,radius=10)
+    
+
+
     if image_bool:
-        images.image_show(waitKeyvalue = 100)
+        #images.green_filter()
+        #images.image_show(waitKeyvalue = 100)
+        images.show_undistorted(waitKeyvalue = 100)
 
 
 
