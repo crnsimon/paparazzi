@@ -30,9 +30,16 @@ camera_front = Camera()
 
 # Create a state vector object
 state_vector = StateVector(file_path)
+state_vector.low_pass_filter_data(0.9)
+state_vector.plot_xyz()
 # Extract Cyberzoo data
 zmin = max(state_vector.z_pos_array)#max(state_vector.z_pos_array)
 cyberzoo = CyberZooStructure(zmin)
+
+# Temporary plots to check the data
+print(cyberzoo.corner_upper_coordinates)
+
+# Other
 points3d_cyberzoo = cyberzoo.return_points3d()
 #perimeterspoints_3dWorld_Cyberzoo = cyberzoo.get_perimeter_points()
 formatted_colored_points = cyberzoo.get_colored_perimeter_points()
@@ -46,26 +53,7 @@ if plot_bool:
 images = VideoFeed(image_path)
 # Rotate the image
 images.image_rotate_90_counter()
-
-# Loop over images and undistort them
-# Create a list to store the undistorted images
-fisheye_bool = False
-if fisheye_bool == True:
-    K = np.array([[323.94986777, 0, 265.6212057 ],
-                  [ 0, 324.58989285, 213.41963136],
-                  [ 0, 0, 1 ]])
-        
-    D = np.array([[-0.03146083],
-                  [-0.03191633],
-                  [ 0.05678013],
-                  [-0.04003636]])
-else:
-    K = np.array([[1.06848861e+03, 0.00000000e+00, 2.43338041e+02],
-                              [0.00000000e+00, 1.54122474e+03, 1.22209857e+02],
-                              [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
-    
-    D = np.array([[7.49344678e-01, -5.89979880e+01, 1.67460462e-01, -7.29040201e-02, 4.51276257e+02]])
-        
+ 
 '''
 undistorted_images = []
 for i in range(len(images.frame_files)):
@@ -90,12 +78,15 @@ phi_camera = []
 psi_camera = []
 times_list = []
 
+print(camera_front.K.shape)
+print(camera_front.D.shape)
+print(camera_front.K.dtype)
+print(camera_front.D.dtype)
+
 for i in range(len(images.frame_files)):
     images.index = i
     images.image_current = images.image_read(i)
     images.image_rotate_90_counter()
-
-
     
     time = images.find_time()
     times_list.append(time)
@@ -104,22 +95,18 @@ for i in range(len(images.frame_files)):
     x_pos_camera.append(camera_front.x_pos); y_pos_camera.append(camera_front.y_pos); z_pos_camera.append(camera_front.z_pos)
     theta_camera.append(camera_front.theta); phi_camera.append(camera_front.phi); psi_camera.append(camera_front.psi)
 
-
     # Create the projection
     # Project the cyberzoo points
     # Convert points3d_cyberzoo elements to a numpy array of type float32 and reshape to have 3 channels
     points2D_cyberzoo_XYRGB, points3D_cyberzoo_camera_XYZRBG = camera_front.project_3D_to_2D(np.array(formatted_colored_points, dtype=np.float32).reshape(-1, 1, 6), fisheye_bool = True)
     images.draw_circle(points2D_cyberzoo_XYRGB,radius=10)
 
-    images.Undistort(K, D)
-    images.draw_circle_undistorted(points2D_cyberzoo_XYRGB,radius=10)
-    
-
+    #images.draw_circle_undistorted(points2D_cyberzoo_XYRGB,radius=10)
 
     if image_bool:
         #images.green_filter()
-        #images.image_show(waitKeyvalue = 100)
-        images.show_undistorted(waitKeyvalue = 100)
+        images.image_show(waitKeyvalue = 100)
+        #images.show_undistorted(waitKeyvalue = 100)
 
 
 

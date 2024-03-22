@@ -37,25 +37,25 @@ class Camera:
                               [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
     
         self.D_nonfisheye = np.array([[7.49344678e-01, -5.89979880e+01, 1.67460462e-01, -7.29040201e-02, 4.51276257e+02]])
-        
-        self.K = np.array([[323.94986777, 0, 265.6212057 ],
-                           [ 0, 324.58989285, 213.41963136],
-                           [ 0, 0, 1 ]] )
-        
-        self.K = np.array([[323.94986777, 0, 265 ],
-                           [ 0, 324.58989285, 213],
-                           [ 0, 0, 1 ]] )
-        
+        '''
+        self.K = np.array([[323.94986777,   0.         , 265.6212057 ],
+              [  0.         , 324.58989285 ,213.41963136],
+              [  0.           , 0.           , 1.        ]])
+
         self.D = np.array([[-0.03146083],
-                           [-0.03191633],
-                           [ 0.05678013],
-                           [-0.04003636]])
+                    [-0.03191633],
+                    [ 0.05678013],
+                    [-0.04003636]]) 
         
-        self.D = np.array([[-0.031],
-                           [-0.032],
-                           [ 0.057],
-                           [-0.040]])
-    
+        '''
+        self.K = np.array([[313.53134155,   0.,         267.47085571],
+                    [  0.,         313.78887939, 213.80151367],
+                    [  0.,           0.,           1.        ]])
+
+        self.D = np.array([[ 0.15089186],
+                    [ 0.1684225 ],
+                    [-0.00544727],
+                    [ 0.15230866]])
         
         
     def update_state_vector(self, state_vector, time):
@@ -87,12 +87,9 @@ class Camera:
             if self.psi < 0:
                 yaw = 2 * np.pi + self.psi
             else:
+                roll = self.phi
                 yaw = self.psi
             pitch = self.theta
-            # HARD CODED ~~~~~~~~~~~~~!!!!!!!!!!!!!!!!!!!!
-            pitch = 0
-            roll = 0
-
 
             Rx = np.array([[1, 0, 0],
                    [0, np.cos(roll), -np.sin(roll)],
@@ -119,22 +116,45 @@ class Camera:
         T = np.array([[self.x_pos], [self.y_pos], [self.z_pos]])
         return T
 
-    def point3DWorld_to_point3D_Drone(self, point_3D):
+    def point3DWorld_to_point3D_Drone(self, point_3D_NED):
+        # NED Is wrong
+        yaw = 15 * np.pi / 180
+        Rz = np.array([[np.cos(yaw), -np.sin(yaw), 0],
+                                [np.sin(yaw), np.cos(yaw), 0],
+                                [0, 0, 1]])
+
+        NED_North = point_3D_NED[0][0][0]
+        NED_East = point_3D_NED[0][0][1]
+        NED_Down = point_3D_NED[0][0][2]
+
+        NED_T = [[NED_North],
+                [NED_East],
+                [NED_Down]]
+
+        World_XYZ_wrongnumpy = Rz @ NED_T
+
+        World_X = World_XYZ_wrongnumpy[0][0]
+        World_Y = World_XYZ_wrongnumpy[1][0]
+        World_Z = World_XYZ_wrongnumpy[2][0]
+
+        points_3d_World = np.array([[[World_X, World_Y, World_Z]]])
+
+        points_3d_World = np.array([[[World_X, World_Y, World_Z]]])
         
         T = self.update_camera_translation_vector()
         R = self.update_camera_rotation_matrix()
 
-        point_3D = point_3D[0][0]
+        point_3d_World = points_3d_World[0][0]
         T = T.T[0]
 
 
-        point_3D_translated = point_3D - T
+        point_3D_translated = point_3d_World - T
         point_3D_translated = point_3D_translated[np.newaxis, :]
         point_3D_translated = point_3D_translated.T
 
 
         point_3D_rotated = R @ point_3D_translated
-
+        # Output Point_3D_drone
         return point_3D_rotated
 
     def point3DDrone_to_point3DCamera(self, point_3D_Drone):
@@ -150,6 +170,7 @@ class Camera:
             - Z : Forward
             '''
             point_3D_Drone = point_3D_Drone[0][0]
+            
             X_drone = point_3D_Drone[0]
             Y_drone = point_3D_Drone[1]
             Z_drone = point_3D_Drone[2]
@@ -161,6 +182,11 @@ class Camera:
             point_3D_Camera = np.array([X_camera, Y_camera, Z_camera])
 
             return point_3D_Camera
+    
+    def updateCameraMatrix(self, K, D):
+        self.K = K
+        self.D = D
+        return None
 
     def project_3D_to_2D(self, points_3D_World_XYZ_RGB_Array, fisheye_bool = False):
         # (N, 6) array with columns [X, Y, Z, R, G, B].
@@ -173,23 +199,17 @@ class Camera:
 
         for i in range((points_3D_World_XYZ_RGB_Array.shape[0])):
             # Extract XYZ
-            #print('points_3D_World_XYZ_RGB_Array', points_3D_World_XYZ_RGB_Array[i])
             points_3D_World = np.array([points_3D_World_XYZ_RGB_Array[i][0][:3]])
-            #print('points_3D_World', points_3D_World)
             points_3D_World = np.array(points_3D_World, dtype=np.float32).reshape(-1, 1, 3)
-            #print('points_3D_World reshaped', points_3D_World)
 
             # Apply transformation to project points from world to camera coordinates
             # The translation needs to be negated because we are moving the points to the camera's coordinate system
             points_3D_drone = self.point3DWorld_to_point3D_Drone(points_3D_World)
-            #print('points_3D_camera', points_3D_camera) 
             points_3D_drone = np.array(points_3D_drone, dtype=np.float32).reshape(-1, 1, 3)
-            #print('points_3D_camera reshaped', points_3D_camera)
             # Pause run untill
 
             points_3D_camera = self.point3DDrone_to_point3DCamera(points_3D_drone)
             points_3D_camera = np.array(points_3D_camera, dtype=np.float32).reshape(-1, 1, 3)
-            #print('points_3D_camera', points_3D_camera)
 
             #D_truncated = self.D[:, :4]
             if fisheye_bool:
@@ -198,17 +218,14 @@ class Camera:
             else:
                 points_2D, _ = cv2.projectPoints(points_3D_camera, rvec_null, Tvec_null, self.K_nonfisheye, self.D_nonfisheye)
                 # This gives awfull values.
-            print('points_2D', points_2D)
+            
             points_2D = points_2D.reshape(-1, 2)
-            print('points_2Da', points_2D)
 
             # Reattach the RGB values to the projected 2D points
             RBG_values = np.array(points_3D_World_XYZ_RGB_Array[i][0][3:])
             points_2D_RGB = np.concatenate((points_2D[0], RBG_values))
-            #print('points_2D_RGB', points_2D_RGB)
             # Reattach the RGB values to the projected 3D points
             points_3D_drone_RGB = np.concatenate((points_3D_drone[0][0], RBG_values))
-            #print('points_3D_camera_RGB', points_3D_camera_RGB)
             
             # Append the projected 2D points to the array
             points_2D_XYRGB_array[i] = points_2D_RGB
@@ -261,6 +278,12 @@ class StateVector:
         self.theta = self.theta_array[0]
         self.psi = self.psi_array[0]
         self.phi = self.phi_array[0]
+
+    def low_pass_filter_data(self, alpha = 0.9):
+        self.theta = alpha * self.theta + (1 - alpha) * self.theta
+        self.psi = alpha * self.psi + (1 - alpha) * self.psi
+        self.phi = alpha * self.phi + (1 - alpha) * self.phi
+        return None
 
     def update_state_arrays(self, file_path):
         df = pd.read_csv(file_path)
@@ -321,11 +344,11 @@ class StateVector:
     def plot_angles(self):
         fig, axs = plt.subplots(3)
         fig.suptitle('Angles')
-        axs[0].plot(self.time_array, self.theta_array)
+        axs[0].plot(self.time_array, self.theta_array, 'o')
         axs[0].set_title('Theta')
-        axs[1].plot(self.time_array, self.psi_array)
+        axs[1].plot(self.time_array, self.psi_array, 'o')
         axs[1].set_title('Psi')
-        axs[2].plot(self.time_array, self.phi_array)
+        axs[2].plot(self.time_array, self.phi_array, 'o')
         axs[2].set_title('Phi')
         plt.show()
 
@@ -380,10 +403,10 @@ class CyberZooStructure:
 
         # Define the RGB color codes for each corner
         self.corner_colors = {
-            'A': (0, 255, 0),  # Green
-            'B': (255, 0, 0),  # Red
-            'C': (0, 0, 255),  # Blue
-            'D': (255, 255, 0)  # Yellow
+            'A': (0, 0, 255),  # Blue
+            'B': (255, 255, 0),  # Yellow
+            'C': (255, 0, 0),  # Red
+            'D': (0, 255, 0)  # Green
         }
 
         self.wall_height = 4 #m
@@ -470,7 +493,7 @@ class CyberZooStructure:
     def return_points3d(self):
         return [self.points3d_A, self.points3d_B, self.points3d_C, self.points3d_D]
     
-    def generate_line_points(self, start, end, num_points=10):
+    def generate_line_points(self, start, end, num_points=4):
         x_values = [start['x'] + (end['x'] - start['x']) * i / (num_points - 1) for i in range(num_points)]
         y_values = [start['y'] + (end['y'] - start['y']) * i / (num_points - 1) for i in range(num_points)]
         z_values = [start['z'] + (end['z'] - start['z']) * i / (num_points - 1) for i in range(num_points)]
@@ -575,7 +598,6 @@ class VideoFeed:
         for point in points_2D_RGB:
             x_coordinate, y_coordinate = point[:2]
             color = tuple([int(c) for c in point[2:5]])
-            #print('color:', color, 'type:', type(color))
             cv2.circle(self.image_current, (int(x_coordinate), int(y_coordinate)), radius, color, thickness)
         return None
 
@@ -634,161 +656,13 @@ class VideoFeed:
         # XXXXXXXX.jpg -> SS.XXXXXX jpg SS is seconds i.e. 60483805.jpg -> 60.483805 seconds
         time = int(self.frame_files[self.index].split('.')[0])/1000000
         return time
-
-    def green_filter(self, lower_green=np.array([30, 30, 30]), upper_green=np.array([90, 255, 255]), kernel_size=(50,50), canny_thresholds=(100, 200)):    
-        # Convert BGR to HSV
-        hsv = cv2.cvtColor(self.image_current, cv2.COLOR_BGR2HSV)
-
-        # Apply CLAHE
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-        for i in range(hsv.shape[-1]):
-            hsv[:,:,i] = clahe.apply(hsv[:,:,i])
-
-        # Threshold the HSV image to get only green colors
-        green_mask = cv2.inRange(hsv, lower_green, upper_green)
-
-        # Define a kernel for the morphological operations
-        kernel = np.ones(kernel_size, np.uint8)
-
-        # Apply dilation and erosion to smooth the mask
-        green_mask = cv2.morphologyEx(green_mask, cv2.MORPH_CLOSE, kernel)
-
-        # Invert the mask
-        green_mask_inv = cv2.bitwise_not(green_mask)
-
-        # Bitwise-AND mask and original image (optional, to highlight green areas)
-        result = cv2.bitwise_and(self.image_current, self.image_current, mask=green_mask_inv)
-
-        # Display the original and result images
-        stack_frames = np.vstack((self.image_current, result))
-        cv2.imshow('Green Removed', stack_frames)
-
-        # Show image with no green
-        cv2.imshow('No Green', result)
-
-        return None
     
     def Undistort(self, K, D):
-        # Undistort the image
-        self.image_current_undistorted = cv2.undistort(self.image_current, K, D, None, K)
+        self.image_current_undistorted = cv2.undistort(self.image_current, K, D)
         return None
-
-    def show_undistorted(self, waitKeyvalue = 100, max_size  = 1500):
-        cv2.namedWindow('Undistorted', cv2.WINDOW_NORMAL)
-
-        # Stack the original and undistorted images
-        stack_frames = np.vstack((self.image_current, self.image_current_undistorted))
-        
-        # Get the original image size
-        height, width = self.image_current_undistorted.shape[:2]
-        
-        # Calculate the new size while keeping the same aspect ratio
-        scale = max_size / max(height, width)
-        new_width = int(scale * width)
-        new_height = int(scale * height)
-        
-        cv2.resizeWindow('Undistorted', new_width, new_height*2)
-
-        cv2.imshow('Undistorted', stack_frames)
+    
+    def show_undistorted(self, waitKeyvalue = 100):
+        cv2.namedWindow('Image', cv2.WINDOW_NORMAL)
+        cv2.imshow('Image', self.image_current_undistorted)
         cv2.waitKey(waitKeyvalue)
         return None
-    
-    def draw_circle_undistorted(self, points_2D_RGB, radius=100, thickness=-1):
-        for point in points_2D_RGB:
-            x_coordinate, y_coordinate = point[:2]
-            color = tuple([int(c) for c in point[2:5]])
-            #print('color:', color, 'type:', type(color))
-            cv2.circle(self.image_current_undistorted, (int(x_coordinate), int(y_coordinate)), radius, color, thickness)
-        return None
-
-class OpticalFlow:
-    def __init__(self, frame1, frame2):
-        self.frame1 = frame1
-        self.frame2 = frame2
-        self.flow = self.compute_flow(frame1, frame2)
-        self.flow_rgb = self.get_flow_viz()
-
-    def compute_flow(frame1, frame2, pyr_scale=0.75, levels=3, winsize=5,
-                    iterations=3, poly_n=10, poly_sigma=1.2, flags=0):
-        
-        flow = cv2.calcOpticalFlowFarneback(frame1, frame2, None,
-                                            pyr_scale=pyr_scale,
-                                            levels=levels,
-                                            winsize=winsize,
-                                            iterations=iterations,
-                                            poly_n=poly_n,
-                                            poly_sigma=poly_sigma,
-                                            flags=flags)
-        return flow
-
-    def get_flow_viz(self):
-        """ Obtains BGR image to Visualize the Optical Flow 
-            """
-        flow = self.flow
-        hsv = np.zeros((flow.shape[0], flow.shape[1], 3), dtype=np.uint8)
-        hsv[..., 1] = 255
-
-        mag, ang = cv2.cartToPolar(flow[..., 0], flow[..., 1])
-        hsv[..., 0] = ang*180/np.pi/2
-        hsv[..., 2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
-        rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
-
-        self.flow_rgb = rgb
-        return None
-    
-    def motion_mask(self, motion_thresh=1, kernel=np.ones((7,7))):
-        flow = self.flow
-        flow_mag, flow_ang = cv2.cartToPolar(flow[..., 0], flow[..., 1])
-        motion_thresh = np.linspace(0.1, 1, flow_mag.shape[0]).reshape(-1, 1)
-        
-        motion_mask = np.uint8(flow_mag > motion_thresh) * 255
-        motion_mask = cv2.erode(motion_mask, kernel, iterations=1)
-        motion_mask = cv2.morphologyEx(motion_mask, cv2.MORPH_OPEN, kernel, iterations=1)
-        motion_mask = cv2.morphologyEx(motion_mask, cv2.MORPH_CLOSE, kernel, iterations=3)
-    
-        return motion_mask
-    
-    def mask_rgb(self, mask):
-        mask_rgb = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
-
-    def green_filter(self, mask_rgb, lower_green=np.array([30, 30, 30]), upper_green=np.array([90, 255, 255]), kernel_size=(15,15), canny_thresholds=(100, 200)):
-        # Convert BGR to HSV
-        frame2_bgr = self.frame2
-        hsv = cv2.cvtColor(frame2_bgr, cv2.COLOR_BGR2HSV)
-
-        # Apply CLAHE
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-        for i in range(hsv.shape[-1]):
-            hsv[:,:,i] = clahe.apply(hsv[:,:,i])
-
-        # Threshold the HSV image to get only green colors
-        green_mask = cv2.inRange(hsv, lower_green, upper_green)
-
-        # Define a kernel for the morphological operations
-        kernel = np.ones(kernel_size, np.uint8)
-
-        # Apply dilation and erosion to smooth the mask
-        green_mask = cv2.morphologyEx(green_mask, cv2.MORPH_CLOSE, kernel)
-
-        # Invert the mask
-        green_mask_inv = cv2.bitwise_not(green_mask)
-
-        # Bitwise-AND mask and original image (optional, to highlight green areas)
-        result = cv2.bitwise_and(frame2_bgr, frame2_bgr, mask=green_mask_inv)
-
-        # Display the original and result images
-        stack_frames = np.vstack((frame2_bgr, result))
-        cv2.imshow('Green Removed', stack_frames)
-
-        mask_rgb_no_green = cv2.bitwise_and(mask_rgb, mask_rgb, mask=green_mask_inv)
-
-        # Apply edge detection to the green mask
-        edges = cv2.Canny(green_mask, *canny_thresholds)
-
-        # Filter out the wall lines
-        edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
-
-        # Display the edges
-        cv2.imshow('Edges', edges)
-
-        return edges, mask_rgb_no_green

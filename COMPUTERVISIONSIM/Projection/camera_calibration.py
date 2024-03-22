@@ -41,15 +41,15 @@ for image_file in image_files:
 
 cv2.destroyAllWindows()
 
-fisheyecamera = False
+fisheyecamera = True
 if not fisheyecamera:
 
     # Perform camera calibration
-    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
+    ret, K, D, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
 
     # Display the camera matrix and distortion coefficients
-    print("Camera matrix:\n", mtx)
-    print("Distortion coefficients:\n", dist)
+    print("Camera matrix:\n", K)
+    print("Distortion coefficients:\n", D)
 
 else:
     # Calibrate fisheye camera
@@ -78,45 +78,20 @@ else:
     print("Fisheye camera matrix:\n", K)
     print("Fisheye distortion coefficients:\n", D)
 
-
-'''
-Fisheye camera matrix:
- [[323.94986777   0.         265.6212057 ]
- [  0.         324.58989285 213.41963136]
- [  0.           0.           1.        ]]
-Fisheye distortion coefficients:
- [[-0.03146083]
- [-0.03191633]
- [ 0.05678013]
- [-0.04003636]]
-'''
-K_nonfisheye = np.array([[1.06848861e+03, 0.00000000e+00, 2.43338041e+02],
-                              [0.00000000e+00, 1.54122474e+03, 1.22209857e+02],
-                              [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
-    
-D_nonfisheye = np.array([[7.49344678e-01, -5.89979880e+01, 1.67460462e-01, -7.29040201e-02, 4.51276257e+02]])
-        
-K = np.array([[323.94986777, 0, 265.6212057 ],
-            [ 0, 324.58989285, 213.41963136],
-            [ 0, 0, 1 ]] )
-
-D = np.array([[-0.03146083],
-            [-0.03191633],
-            [ 0.05678013],
-            [-0.04003636]])
-
-
-
 # Undistort the image
 img = cv2.imread(image_files[0])
 img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
 img_undistorted = cv2.undistort(img, K, D, None, K)
+# Show the original and undistorted images
+cv2.imshow('Original', img)
+cv2.imshow('Undistorted', img_undistorted)
+cv2.waitKey(0)
 
 # Re-projection error
 mean_error = 0
 for i in range(len(objpoints)):
-    imgpoints2, _ = cv2.projectPoints(objpoints[i], rvecs[i], tvecs[i], K, D)
+    imgpoints2, _ = cv2.fisheye.projectPoints(objpoints[i], rvecs[i], tvecs[i], K, D)
     error = cv2.norm(imgpoints[i], imgpoints2, cv2.NORM_L2) / len(imgpoints2)
     mean_error += error
 
