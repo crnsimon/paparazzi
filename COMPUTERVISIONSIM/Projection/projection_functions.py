@@ -105,6 +105,7 @@ class Camera:
 
             # The order of multiplication depends on the convention used. This uses ZYX (yaw-pitch-roll).
             R = np.dot(Rz, np.dot(Ry, Rx))
+            # R = R_inv  
             return R
         
     def update_rotation_vector(self):
@@ -117,6 +118,7 @@ class Camera:
         return T
 
     def point3DWorld_to_point3D_Drone(self, point_3D_NED):
+        '''
         # NED Is wrong
         yaw = 15 * np.pi / 180
         Rz = np.array([[np.cos(yaw), -np.sin(yaw), 0],
@@ -140,6 +142,8 @@ class Camera:
         points_3d_World = np.array([[[World_X, World_Y, World_Z]]])
 
         points_3d_World = np.array([[[World_X, World_Y, World_Z]]])
+        '''
+        points_3d_World = point_3D_NED
         
         T = self.update_camera_translation_vector()
         R = self.update_camera_rotation_matrix()
@@ -375,7 +379,16 @@ class StateVector:
         return interpolated_state_vector
 
         
-
+'''
+_OZ1: X=-1.34 m, Y=-3.37 m, Z=0 m
+_OZ2: X=-4.40 m, Y=1.05 m, Z=0 m
+_OZ3: X=0.44 m, Y=4.18 m, Z=0 m
+_OZ4: X=3.27 m, Y=-0.41 m, Z=0 m
+_OZ1: X=-2.17 m, Y=-2.91 m, Z=0.00 m
+_OZ2: X=-3.98 m, Y=2.16 m, Z=0.00 m
+_OZ3: X=1.51 m, Y=3.93 m, Z=0.00 m
+_OZ4: X=3.05 m, Y=-1.24 m, Z=0.00 m
+'''
 
 class CyberZooStructure:
     def __init__(self, zmin):
@@ -383,18 +396,18 @@ class CyberZooStructure:
         self.cyberzoo_green_length = 7
         self.z_min = zmin
         self.corner_coordinates = {
-            'A': {'x' : self.cyberzoo_green_width/2,
-                'y' : self.cyberzoo_green_length/2,
-                'z' : self.z_min},
-            'B': {'x' : -self.cyberzoo_green_width/2,
-                'y' : self.cyberzoo_green_length/2,
-                'z' : self.z_min},
-            'C': {'x' : -self.cyberzoo_green_width/2,
-                'y' : -self.cyberzoo_green_length/2,
-                'z' : self.z_min},
-            'D': {'x' : self.cyberzoo_green_width/2,
-                'y' : -self.cyberzoo_green_length/2,
-                'z' : self.z_min}
+            'A': {'x' : -1.34,
+                'y' : -3.37,
+                'z' : 0}, 
+            'B': {'x' : -4.40,
+                'y' : 1.05,
+                'z' : 0}, # _OZ2: X=-4.40 m, Y=1.05 m, Z=0 m
+            'C': {'x' : 0.44,
+                'y' : 4.18,
+                'z' : 0}, # _OZ3: X=0.44 m, Y=4.18 m, Z=0 m
+            'D': {'x' : 3.05,
+                'y' : -1.24,
+                'z' : 0} #_OZ4: X=3.05 m, Y=-1.24 m, Z=0.00 m
         }
         self.points3d_A = [self.corner_coordinates['A']['x'], self.corner_coordinates['A']['y'], self.corner_coordinates['A']['z']]
         self.points3d_B = [self.corner_coordinates['B']['x'], self.corner_coordinates['B']['y'], self.corner_coordinates['B']['z']]
