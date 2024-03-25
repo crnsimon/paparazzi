@@ -87,6 +87,7 @@ float distance_covered_y;
 float initial_x; 
 float initial_y;
 float distance_covered;
+float test_increment;
 
 const int16_t max_trajectory_confidence = 5;  // number of consecutive negative object detections to be sure we are obstacle free
 
@@ -238,7 +239,7 @@ void orange_avoider_guided_periodic(void)
       // stop
       guidance_h_set_body_vel(0, 0);
 
-      // randomly select new search direction
+      // randomly float test_incrementselect new search direction
       chooseRandomIncrementAvoidance();
 
       navigation_state = SEARCH_FOR_SAFE_HEADING;
@@ -248,8 +249,10 @@ void orange_avoider_guided_periodic(void)
       // guidance_h_set_heading_rate(avoidance_heading_direction * oag_heading_rate);
       // make sure we have a couple of good readings before declaring the way safe
 
-      safe_heading = -155/2 + 155/num_strips * floor_centroid_frac;
-      
+      // safe_heading = -155/2 + 155/num_strips * floor_centroid_frac;
+      test_increment = 30.f;
+      safe_heading = stateGetNedToBodyEulers_f()->psi + RadOfDeg(test_increment);
+      guidance_h_set_heading(safe_heading);
       // if (right_free_conf > 5){
       //   safe_heading = (-80 + 150/num_strips * heading_idx_oag_gre);
       // } else if (left_free_conf > 5) { 
