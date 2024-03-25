@@ -206,4 +206,4 @@ tests/results/*
 *.kate-swp
 
 # Data file
-/Data_gitignore
+/COMPUTERVISIONSIM
