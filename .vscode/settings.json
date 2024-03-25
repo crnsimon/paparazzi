@@ -16,7 +16,8 @@
         "opencv.hpp": "c",
         "imgproc_c.h": "c",
         "stdbool.h": "c",
-        "random": "cpp"
+        "random": "cpp",
+        "thread": "cpp"
     },
     "C_Cpp.dimInactiveRegions": false,
     "esbonio.sphinx.confDir": "",

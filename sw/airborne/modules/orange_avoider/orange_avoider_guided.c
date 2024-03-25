@@ -64,6 +64,8 @@ float oag_heading_rate = RadOfDeg(45.f);  // heading change setpoint for avoidan
 enum navigation_state_t navigation_state = SEARCH_FOR_SAFE_HEADING;   // current state in state machine
 int32_t color_count = 0;                // orange color count from color filter for obstacle detection
 int32_t floor_count = 0;                // green color count from color filter for floor detection
+int32_t orange_count = 0;                // green color count from color filter for floor detection
+int32_t black_count = 0;
 int32_t floor_centroid = 0;             // floor detector centroid in y direction (along the horizon)
 float avoidance_heading_direction = 0;  // heading change direction for avoidance [rad/s]
 int16_t obstacle_free_confidence = 0;   // a measure of how certain we are that the way ahead if safe.
@@ -73,7 +75,7 @@ int16_t obstacle_free_confidence = 0;   // a measure of how certain we are that 
 int32_t heading_idx_oag = 5;
 
 
-int32_t num_strips = 10;
+int32_t num_strips = 5;
 
 // int32_t left_free_conf = 0; 
 // int32_t right_free_conf = 0; 
@@ -97,7 +99,7 @@ static abi_event orange_detection_ev;
 static void orange_detection_cb(uint8_t __attribute__((unused)) sender_id,
                                int16_t __attribute__((unused)) pixel_x, int16_t __attribute__((unused)) pixel_y,
                                int16_t __attribute__((unused)) pixel_width, int16_t __attribute__((unused)) pixel_height,
-                               int32_t quality,
+                               int32_t* quality,
                               //  int32_t leftpix, int32_t rightpix,
                                int32_t heading_idx,
                                int16_t __attribute__((unused)) extra)
@@ -105,7 +107,8 @@ static void orange_detection_cb(uint8_t __attribute__((unused)) sender_id,
   orange_count = quality;
   // orange_pixels_left = leftpix; // This needs to be made such that it analyses 5 strips rather than splitting image in half
   // orange_pixels_right = rightpix; //Must be called again for each filter, shuold return pixel count for each strip and centroid
-  heading_idx_oag_orange = heading_idx;
+  // heading_idx_oag_orange = heading_idx;
+  heading_idx_oag = heading_idx;
 }
 
 #ifndef FLOOR_VISUAL_DETECTION_ID
@@ -116,7 +119,7 @@ static abi_event floor_detection_ev;
 static void floor_detection_cb(uint8_t __attribute__((unused)) sender_id,
                                int16_t __attribute__((unused)) pixel_x, int16_t pixel_y,
                                int16_t __attribute__((unused)) pixel_width, int16_t __attribute__((unused)) pixel_height,
-                               int32_t quality, 
+                               int32_t* quality, 
                               //  int32_t leftpix, int32_t rightpix,
                                int32_t heading_idx,
                                int16_t __attribute__((unused)) extra)
@@ -133,7 +136,7 @@ static abi_event black_detection_ev;
 static void black_detection_cb(uint8_t __attribute__((unused)) sender_id,
                                int16_t __attribute__((unused)) pixel_x, int16_t pixel_y,
                                int16_t __attribute__((unused)) pixel_width, int16_t __attribute__((unused)) pixel_height,
-                               int32_t quality, 
+                               int32_t* quality, 
                               //  int32_t leftpix, int32_t rightpix,
                                int32_t heading_idx,
                                int16_t __attribute__((unused)) extra)
