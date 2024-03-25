@@ -52,8 +52,6 @@ static pthread_mutex_t mutex;
 #define COLOR_OBJECT_DETECTOR_FPS2 0 ///< Default FPS (zero means run at camera fps)
 #endif
 
-#define NUM_STRIPS 10
-
 // Filter Settings
 uint8_t cod_lum_min1 = 0;
 uint8_t cod_lum_max1 = 0;
@@ -69,7 +67,6 @@ uint8_t cod_cb_max2 = 0;
 uint8_t cod_cr_min2 = 0;
 uint8_t cod_cr_max2 = 0;
 
-
 bool cod_draw1 = false;
 bool cod_draw2 = false;
 
@@ -78,9 +75,6 @@ struct color_object_t {
   int32_t x_c;
   int32_t y_c;
   uint32_t color_count;
-  uint32_t left_orange;
-  uint32_t right_orange;
-  uint32_t heading_idx;
   bool updated;
 };
 struct color_object_t global_filters[2];
@@ -89,9 +83,7 @@ struct color_object_t global_filters[2];
 uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc, bool draw,
                               uint8_t lum_min, uint8_t lum_max,
                               uint8_t cb_min, uint8_t cb_max,
-                              uint8_t cr_min, uint8_t cr_max,
-                              uint32_t* left_orange_cnt, uint32_t* right_orange_cnt, 
-                              uint32_t* heading_idx);
+                              uint8_t cr_min, uint8_t cr_max);
 
 /*
  * object_detector
@@ -130,22 +122,15 @@ static struct image_t *object_detector(struct image_t *img, uint8_t filter)
   };
 
   int32_t x_c, y_c;
-  uint32_t left_orange = 0;
-  uint32_t right_orange = 0;
-  uint32_t heading_idx = 0;
 
   // Filter and find centroid
-  uint32_t count = find_object_centroid(img, &x_c, &y_c, draw, lum_min, lum_max, cb_min, cb_max, cr_min, cr_max, &left_orange, &right_orange, &heading_idx);
+  uint32_t count = find_object_centroid(img, &x_c, &y_c, draw, lum_min, lum_max, cb_min, cb_max, cr_min, cr_max);
   VERBOSE_PRINT("Color count %d: %u, threshold %u, x_c %d, y_c %d\n", camera, object_count, count_threshold, x_c, y_c);
   VERBOSE_PRINT("centroid %d: (%d, %d) r: %4.2f a: %4.2f\n", camera, x_c, y_c,
         hypotf(x_c, y_c) / hypotf(img->w * 0.5, img->h * 0.5), RadOfDeg(atan2f(y_c, x_c)));
 
   pthread_mutex_lock(&mutex);
   global_filters[filter-1].color_count = count;
-  global_filters[filter-1].left_orange = left_orange;
-  global_filters[filter-1].right_orange = right_orange;
-  global_filters[filter-1].heading_idx = heading_idx;
-
   global_filters[filter-1].x_c = x_c;
   global_filters[filter-1].y_c = y_c;
   global_filters[filter-1].updated = true;
@@ -221,91 +206,55 @@ void color_object_detector_init(void)
  * @param draw - whether or not to draw on image
  * @return number of pixels of image within the filter bounds.
  */
-
-
-
 uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc, bool draw,
                               uint8_t lum_min, uint8_t lum_max,
                               uint8_t cb_min, uint8_t cb_max,
-                              uint8_t cr_min, uint8_t cr_max,
-                              uint32_t* left_orange_cnt, uint32_t* right_orange_cnt,
-                              uint32_t* heading_idx
-                              ) {
-    uint32_t cnt = 0;
-    uint32_t tot_x = 0;
-    uint32_t tot_y = 0;
-    uint32_t orange_counts[NUM_STRIPS] = {0}; // Array to store orange counts in each strip
+                              uint8_t cr_min, uint8_t cr_max)
+{
+  uint32_t cnt = 0;
+  uint32_t tot_x = 0;
+  uint32_t tot_y = 0;
+  uint8_t *buffer = img->buf;
 
-    uint8_t *buffer = img->buf;
-    uint16_t img_w = img->w;
-    uint16_t img_h = img->h;
-    uint16_t strip_width = img_w / NUM_STRIPS;
-
-    // Iterate over each pixel
-    for (uint16_t y = 0; y < img_h; ++y) {
-        for (uint16_t x = 0; x < img_w; ++x) { //from x goes from bottom to top (0 - img_w)
-            // Calculate strip index
-            uint16_t strip_idx = x / strip_width;
-
-            // Check if the color is inside the specified values
-            uint8_t *yp, *up, *vp;
-            if (x % 2 == 0) {
-                // Even x
-                up = &buffer[y * 2 * img_w + 2 * x];      // U
-                yp = &buffer[y * 2 * img_w + 2 * x + 1];  // Y1
-                vp = &buffer[y * 2 * img_w + 2 * x + 2];  // V
-            } else {
-                // Uneven x
-                up = &buffer[y * 2 * img_w + 2 * x - 2];  // U
-                vp = &buffer[y * 2 * img_w + 2 * x];      // V
-                yp = &buffer[y * 2 * img_w + 2 * x + 1];  // Y2
-            }
-
-            if ((*yp >= lum_min) && (*yp <= lum_max) &&
-                (*up >= cb_min) && (*up <= cb_max) &&
-                (*vp >= cr_min) && (*vp <= cr_max)) {
-                cnt++;
-
-                // Increment orange count for this strip
-                orange_counts[strip_idx]++;
-
-                tot_x += x;
-                tot_y += y;
-                if (draw) {
-                    //*yp = 255;  // make pixel brighter in image
-                }
-            }
+  // Go through all the pixels
+  for (uint16_t y = 0; y < img->h; y++) {
+    for (uint16_t x = 0; x < img->w; x ++) {
+      // Check if the color is inside the specified values
+      uint8_t *yp, *up, *vp;
+      if (x % 2 == 0) {
+        // Even x
+        up = &buffer[y * 2 * img->w + 2 * x];      // U
+        yp = &buffer[y * 2 * img->w + 2 * x + 1];  // Y1
+        vp = &buffer[y * 2 * img->w + 2 * x + 2];  // V
+        //yp = &buffer[y * 2 * img->w + 2 * x + 3]; // Y2
+      } else {
+        // Uneven x
+        up = &buffer[y * 2 * img->w + 2 * x - 2];  // U
+        //yp = &buffer[y * 2 * img->w + 2 * x - 1]; // Y1
+        vp = &buffer[y * 2 * img->w + 2 * x];      // V
+        yp = &buffer[y * 2 * img->w + 2 * x + 1];  // Y2
+      }
+      if ( (*yp >= lum_min) && (*yp <= lum_max) &&
+           (*up >= cb_min ) && (*up <= cb_max ) &&
+           (*vp >= cr_min ) && (*vp <= cr_max )) {
+        cnt ++;
+        tot_x += x;
+        tot_y += y;
+        if (draw){
+          *yp = 255;  // make pixel brighter in image
         }
+      }
     }
-
-    // Find strip with minimum orange pixels
-    uint32_t min_orange_cnt = orange_counts[0];
-    *heading_idx = 0;
-    for (uint16_t i = 1; i < NUM_STRIPS; ++i) {
-        if (orange_counts[i] < min_orange_cnt) {
-            min_orange_cnt = orange_counts[i];
-            *heading_idx = i;
-        }
-    }
-
-
-    // Assign the temporary counts to the output variables
-    *left_orange_cnt = orange_counts[0];
-    *right_orange_cnt = orange_counts[NUM_STRIPS - 1];
-
-    // Calculate centroid
-    if (cnt > 0) {
-        *p_xc = (int32_t)roundf(tot_x / ((float)cnt) - img_w * 0.5f);
-        *p_yc = (int32_t)roundf(img_h * 0.5f - tot_y / ((float)cnt));
-    } else {
-        *p_xc = 0;
-        *p_yc = 0;
-    }
-
-
-    return cnt;
+  }
+  if (cnt > 0) {
+    *p_xc = (int32_t)roundf(tot_x / ((float) cnt) - img->w * 0.5f);
+    *p_yc = (int32_t)roundf(img->h * 0.5f - tot_y / ((float) cnt));
+  } else {
+    *p_xc = 0;
+    *p_yc = 0;
+  }
+  return cnt;
 }
-
 
 void color_object_detector_periodic(void)
 {
@@ -316,12 +265,12 @@ void color_object_detector_periodic(void)
 
   if(local_filters[0].updated){
     AbiSendMsgVISUAL_DETECTION(COLOR_OBJECT_DETECTION1_ID, local_filters[0].x_c, local_filters[0].y_c,
-        0, 0, local_filters[0].color_count, local_filters[0].left_orange, local_filters[0].right_orange, local_filters[0].heading_idx, 0);
+        0, 0, local_filters[0].color_count, 0);
     local_filters[0].updated = false;
   }
   if(local_filters[1].updated){
     AbiSendMsgVISUAL_DETECTION(COLOR_OBJECT_DETECTION2_ID, local_filters[1].x_c, local_filters[1].y_c,
-        0, 0, local_filters[1].color_count,local_filters[0].left_orange, local_filters[0].right_orange, local_filters[0].heading_idx, 1);
+        0, 0, local_filters[1].color_count, 1);
     local_filters[1].updated = false;
   }
 }

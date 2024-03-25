@@ -234,14 +234,17 @@ uint8_t moveWaypoint(uint8_t waypoint, struct EnuCoor_i *new_coor)
  */
 uint8_t chooseRandomIncrementAvoidance(void)
 {
-  // Randomly choose CW or CCW avoiding direction
-  if (rand() % 2 == 0) {
-    heading_increment = 5.f;
-    VERBOSE_PRINT("Set avoidance increment to: %f\n", heading_increment);
-  } else {
-    heading_increment = -5.f;
-    VERBOSE_PRINT("Set avoidance increment to: %f\n", heading_increment);
-  }
-  return false;
+
+  heading_increment = 5.f;
+  return false
+  // // Randomly choose CW or CCW avoiding direction
+  // if (rand() % 2 == 0) {
+  //   heading_increment = 5.f;
+  //   VERBOSE_PRINT("Set avoidance increment to: %f\n", heading_increment);
+  // } else {
+  //   heading_increment = -5.f;
+  //   VERBOSE_PRINT("Set avoidance increment to: %f\n", heading_increment);
+  // }
+  // return false;
 }
 
