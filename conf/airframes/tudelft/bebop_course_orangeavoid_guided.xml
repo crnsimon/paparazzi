@@ -25,6 +25,15 @@
       <define name="COLOR_OBJECT_DETECTOR_CB_MAX2" value="110"/>
       <define name="COLOR_OBJECT_DETECTOR_CR_MIN2" value="120"/>
       <define name="COLOR_OBJECT_DETECTOR_CR_MAX2" value="140"/>
+
+      <!-- Detect black -->
+      <define name="COLOR_OBJECT_DETECTOR_LUM_MIN3" value="0"/> 
+      <define name="COLOR_OBJECT_DETECTOR_LUM_MAX3" value="40"/>
+      <define name="COLOR_OBJECT_DETECTOR_CB_MIN3" value="0"/>  
+      <define name="COLOR_OBJECT_DETECTOR_CB_MAX3" value="255"/>
+      <define name="COLOR_OBJECT_DETECTOR_CR_MIN3" value="0"/>  
+      <define name="COLOR_OBJECT_DETECTOR_CR_MAX3" value="255"/>
+
     </target>
     <target name="nps" board="pc">
       <module name="fdm" type="gazebo"/>
@@ -46,6 +55,15 @@
       <define name="COLOR_OBJECT_DETECTOR_CB_MAX2" value="110"/>
       <define name="COLOR_OBJECT_DETECTOR_CR_MIN2" value="0"/>
       <define name="COLOR_OBJECT_DETECTOR_CR_MAX2" value="130"/>
+
+      <!-- Detect black -->
+      <define name="COLOR_OBJECT_DETECTOR_LUM_MIN3" value="0"/>  
+      <define name="COLOR_OBJECT_DETECTOR_LUM_MAX3" value="50"/> 
+      <define name="COLOR_OBJECT_DETECTOR_CB_MIN3" value="0"/>   
+      <define name="COLOR_OBJECT_DETECTOR_CB_MAX3" value="255"/> 
+      <define name="COLOR_OBJECT_DETECTOR_CR_MIN3" value="0"/>   
+      <define name="COLOR_OBJECT_DETECTOR_CR_MAX3" value="255"/> 
+
     </target>
 
   <!-- Subsystem section -->
@@ -82,10 +100,15 @@
       <define name="COLOR_OBJECT_DETECTOR_CAMERA2" value="front_camera"/>
       <define name="COLOR_OBJECT_DETECTOR_FPS2" value="0"/>
       <define name="COLOR_OBJECT_DETECTOR_DRAW2" value="1"/>
+
+      <define name="COLOR_OBJECT_DETECTOR_CAMERA3" value="front_camera"/>
+      <define name="COLOR_OBJECT_DETECTOR_FPS3" value="0"/>
+      <define name="COLOR_OBJECT_DETECTOR_DRAW3" value="1"/>
     </module>
     <module name="orange_avoider_guided">
       <define name="ORANGE_AVOIDER_VISUAL_DETECTION_ID" value="COLOR_OBJECT_DETECTION1_ID"/>
       <define name="FLOOR_VISUAL_DETECTION_ID" value="COLOR_OBJECT_DETECTION2_ID"/>
+      <define name="BLACK_VISUAL_DETECTION_ID" value="COLOR_OBJECT_DETECTION3_ID"/>
     </module>
     <module name="video_rtp_stream">
       <define name="VIEWVIDEO_CAMERA" value="front_camera"/>

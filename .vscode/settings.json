@@ -9,7 +9,14 @@
         "editor.tabSize": 4,
     },
     "files.associations": {
-        "Makefile.*": "makefile"
+        "Makefile.*": "makefile",
+        "test_detect_c": "c",
+        "core.hpp": "c",
+        "core_c.h": "c",
+        "opencv.hpp": "c",
+        "imgproc_c.h": "c",
+        "stdbool.h": "c",
+        "random": "cpp"
     },
     "C_Cpp.dimInactiveRegions": false,
     "esbonio.sphinx.confDir": "",

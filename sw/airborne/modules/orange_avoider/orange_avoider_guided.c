@@ -34,11 +34,13 @@
 #include <time.h>
 
 #define ORANGE_AVOIDER_VERBOSE TRUE
+#define OBJECT_DETECTOR_VERBOSE TRUE
+
 
 #define PRINT(string,...) fprintf(stderr, "[orange_avoider_guided->%s()] " string,__FUNCTION__ , ##__VA_ARGS__)
 #if ORANGE_AVOIDER_VERBOSE
 #define VERBOSE_PRINT PRINT
-#else
+#else 
 #define VERBOSE_PRINT(...)
 #endif
 
@@ -66,15 +68,15 @@ int32_t floor_centroid = 0;             // floor detector centroid in y directio
 float avoidance_heading_direction = 0;  // heading change direction for avoidance [rad/s]
 int16_t obstacle_free_confidence = 0;   // a measure of how certain we are that the way ahead if safe.
 
-int32_t orange_pixels_left = 0;
-int32_t orange_pixels_right = 0;
+// int32_t orange_pixels_left = 0;
+// int32_t orange_pixels_right = 0;
 int32_t heading_idx_oag = 5;
 
 
 int32_t num_strips = 10;
 
-int32_t left_free_conf = 0; 
-int32_t right_free_conf = 0; 
+// int32_t left_free_conf = 0; 
+// int32_t right_free_conf = 0; 
 float safe_heading = 0; 
 
 float distance_covered_x;
@@ -91,19 +93,19 @@ const int16_t max_trajectory_confidence = 5;  // number of consecutive negative 
 #error This module requires two color filters, as such you have to define ORANGE_AVOIDER_VISUAL_DETECTION_ID to the orange filter
 #error Please define ORANGE_AVOIDER_VISUAL_DETECTION_ID to be COLOR_OBJECT_DETECTION1_ID or COLOR_OBJECT_DETECTION2_ID in your airframe
 #endif
-static abi_event color_detection_ev;
-static void color_detection_cb(uint8_t __attribute__((unused)) sender_id,
+static abi_event orange_detection_ev;
+static void orange_detection_cb(uint8_t __attribute__((unused)) sender_id,
                                int16_t __attribute__((unused)) pixel_x, int16_t __attribute__((unused)) pixel_y,
                                int16_t __attribute__((unused)) pixel_width, int16_t __attribute__((unused)) pixel_height,
                                int32_t quality,
-                               int32_t leftpix, int32_t rightpix,
+                              //  int32_t leftpix, int32_t rightpix,
                                int32_t heading_idx,
                                int16_t __attribute__((unused)) extra)
 {
-  color_count = quality;
-  orange_pixels_left = leftpix;
-  orange_pixels_right = rightpix;
-  heading_idx_oag = heading_idx;
+  orange_count = quality;
+  // orange_pixels_left = leftpix; // This needs to be made such that it analyses 5 strips rather than splitting image in half
+  // orange_pixels_right = rightpix; //Must be called again for each filter, shuold return pixel count for each strip and centroid
+  heading_idx_oag_orange = heading_idx;
 }
 
 #ifndef FLOOR_VISUAL_DETECTION_ID
@@ -115,12 +117,29 @@ static void floor_detection_cb(uint8_t __attribute__((unused)) sender_id,
                                int16_t __attribute__((unused)) pixel_x, int16_t pixel_y,
                                int16_t __attribute__((unused)) pixel_width, int16_t __attribute__((unused)) pixel_height,
                                int32_t quality, 
-                               int32_t leftpix, int32_t rightpix,
+                              //  int32_t leftpix, int32_t rightpix,
                                int32_t heading_idx,
                                int16_t __attribute__((unused)) extra)
 {
   floor_count = quality;
   floor_centroid = pixel_y;
+}
+
+#ifndef BLACK_VISUAL_DETECTION_ID
+#error This module requires two color filters, as such you have to define FLOOR_VISUAL_DETECTION_ID to the orange filter
+#error Please define FLOOR_VISUAL_DETECTION_ID to be COLOR_OBJECT_DETECTION1_ID or COLOR_OBJECT_DETECTION2_ID in your airframe
+#endif
+static abi_event black_detection_ev;
+static void black_detection_cb(uint8_t __attribute__((unused)) sender_id,
+                               int16_t __attribute__((unused)) pixel_x, int16_t pixel_y,
+                               int16_t __attribute__((unused)) pixel_width, int16_t __attribute__((unused)) pixel_height,
+                               int32_t quality, 
+                              //  int32_t leftpix, int32_t rightpix,
+                               int32_t heading_idx,
+                               int16_t __attribute__((unused)) extra)
+{
+  black_count = quality;
+  heading_idx_oag_black = heading_idx;
 }
 
 /*
@@ -134,8 +153,9 @@ void orange_avoider_guided_init(void)
 
 
   // bind our colorfilter callbacks to receive the color filter outputs
-  AbiBindMsgVISUAL_DETECTION(ORANGE_AVOIDER_VISUAL_DETECTION_ID, &color_detection_ev, color_detection_cb);
+  AbiBindMsgVISUAL_DETECTION(ORANGE_AVOIDER_VISUAL_DETECTION_ID, &orange_detection_ev, orange_detection_cb);
   AbiBindMsgVISUAL_DETECTION(FLOOR_VISUAL_DETECTION_ID, &floor_detection_ev, floor_detection_cb);
+  AbiBindMsgVISUAL_DETECTION(BLACK_AVOIDER_VISUAL_DETECTION_ID, &black_detection_ev, black_detection_cb);
 
   float distance_covered_x = 0;
   float distance_covered_y = 0;
@@ -171,7 +191,7 @@ void orange_avoider_guided_periodic(void)
 
 
   // update our safe confidence using color threshold
-  if(color_count < color_count_threshold){
+  if(orange_count < color_count_threshold){
     obstacle_free_confidence+= 1;
   } else {
     obstacle_free_confidence -= 2;  // be more cautious with positive obstacle detections, was 2
@@ -199,9 +219,6 @@ void orange_avoider_guided_periodic(void)
   switch (navigation_state){
     case SAFE:
     
-      
-      
-
 
       if (floor_count < floor_count_threshold || fabsf(floor_centroid_frac) > 0.12){
         navigation_state = OUT_OF_BOUNDS;
@@ -225,12 +242,14 @@ void orange_avoider_guided_periodic(void)
     case SEARCH_FOR_SAFE_HEADING:
       // guidance_h_set_heading_rate(avoidance_heading_direction * oag_heading_rate);
       // make sure we have a couple of good readings before declaring the way safe
+
+      safe_heading = -155/2 + 155/num_strips * floor_centroid_frac;
       
-      if (right_free_conf > 5){
-        safe_heading = (-80 + 150/num_strips * heading_idx_oag);
-      } else if (left_free_conf > 5) { 
-        safe_heading = ((150/num_strips)*(heading_idx_oag - num_strips/2 + 1));
-      }
+      // if (right_free_conf > 5){
+      //   safe_heading = (-80 + 150/num_strips * heading_idx_oag_gre);
+      // } else if (left_free_conf > 5) { 
+      //   safe_heading = ((150/num_strips)*(heading_idx_oag - num_strips/2 + 1));
+      // }
       
       // if (right_free_conf > 5) {
       //   guidance_h_set_heading(stateGetNedToBodyEulers_f()->psi + RadOfDeg(test_increment));

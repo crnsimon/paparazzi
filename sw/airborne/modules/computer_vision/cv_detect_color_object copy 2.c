@@ -67,6 +67,7 @@ uint8_t cod_cb_max2 = 0;
 uint8_t cod_cr_min2 = 0;
 uint8_t cod_cr_max2 = 0;
 
+
 bool cod_draw1 = false;
 bool cod_draw2 = false;
 
@@ -247,12 +248,14 @@ uint32_t find_object_centroid(struct image_t *img, int32_t* p_xc, int32_t* p_yc,
     }
   }
   if (cnt > 0) {
-    *p_xc = (int32_t)roundf(tot_x / ((float) cnt) - img->w * 0.5f);
+    *p_xc = (int32_t)roundf(tot_x / ((float) cnt) - img-f>w * 0.5f);
     *p_yc = (int32_t)roundf(img->h * 0.5f - tot_y / ((float) cnt));
   } else {
     *p_xc = 0;
     *p_yc = 0;
   }
+
+
   return cnt;
 }
 
