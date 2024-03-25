@@ -183,7 +183,7 @@ static struct image_t *object_detector(struct image_t *img, uint8_t filter)
   uint32_t heading_idx = 0;
 
   // Filter and find centroid
-  uint32_t count = find_object_centroid(img, &x_c, &y_c, draw, lum_min, lum_max, cb_min, cb_max, cr_min, cr_max, &heading_idx, pixel_array);
+  uint32_t* count = find_object_centroid(img, &x_c, &y_c, draw, lum_min, lum_max, cb_min, cb_max, cr_min, cr_max, &heading_idx, pixel_array);
   //VERBOSE_PRINT("Color count %d: %u, threshold %u, x_c %d, y_c %d\n", camera, object_count, count_threshold, x_c, y_c);
   //VERBOSE_PRINT("centroid %d: (%d, %d) r: %4.2f a: %4.2f\n", camera, x_c, y_c,
   //     hypotf(x_c, y_c) / hypotf(img->w * 0.5, img->h * 0.5), RadOfDeg(atan2f(y_c, x_c)));
@@ -379,18 +379,18 @@ void color_object_detector_periodic(void)
 
   if(local_filters[0].updated){
     AbiSendMsgVISUAL_DETECTION(COLOR_OBJECT_DETECTION1_ID, local_filters[0].x_c, local_filters[0].y_c,
-        0, 0, local_filters[0].color_count, local_filters[0].heading_idx, 0);
+        0, 0, local_filters[0].color_count, 0);
     local_filters[0].updated = false;
   }
   if(local_filters[1].updated){
     AbiSendMsgVISUAL_DETECTION(COLOR_OBJECT_DETECTION2_ID, local_filters[1].x_c, local_filters[1].y_c,
-        0, 0, local_filters[1].color_count, local_filters[0].heading_idx, 1);
+        0, 0, local_filters[1].color_count, 1);
     local_filters[1].updated = false;
   }
   // Process black filter
   if(local_filters[2].updated){
     AbiSendMsgVISUAL_DETECTION(COLOR_OBJECT_DETECTION3_ID, local_filters[2].x_c, local_filters[2].y_c,
-        0, 0, local_filters[2].color_count, local_filters[2].heading_idx, 2);
+        0, 0, local_filters[2].color_count, 2);
     local_filters[2].updated = false;
   }
 };

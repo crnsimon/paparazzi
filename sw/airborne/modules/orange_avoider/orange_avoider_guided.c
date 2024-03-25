@@ -142,7 +142,9 @@ static void black_detection_cb(uint8_t __attribute__((unused)) sender_id,
                                int16_t __attribute__((unused)) extra)
 {
   black_count = quality;
-  heading_idx_oag_black = heading_idx;
+  // heading_idx_oag_black = heading_idx;
+  heading_idx_oag = heading_idx;
+
 }
 
 /*
@@ -158,7 +160,7 @@ void orange_avoider_guided_init(void)
   // bind our colorfilter callbacks to receive the color filter outputs
   AbiBindMsgVISUAL_DETECTION(ORANGE_AVOIDER_VISUAL_DETECTION_ID, &orange_detection_ev, orange_detection_cb);
   AbiBindMsgVISUAL_DETECTION(FLOOR_VISUAL_DETECTION_ID, &floor_detection_ev, floor_detection_cb);
-  AbiBindMsgVISUAL_DETECTION(BLACK_AVOIDER_VISUAL_DETECTION_ID, &black_detection_ev, black_detection_cb);
+  AbiBindMsgVISUAL_DETECTION(BLACK_VISUAL_DETECTION_ID, &black_detection_ev, black_detection_cb);
 
   float distance_covered_x = 0;
   float distance_covered_y = 0;
@@ -200,11 +202,11 @@ void orange_avoider_guided_periodic(void)
     obstacle_free_confidence -= 2;  // be more cautious with positive obstacle detections, was 2
   }
 
-  if( orange_pixels_left < orange_pixels_right){
-    left_free_conf+= 1;
-  } else {
-    right_free_conf += 1;  // be more cautious with positive obstacle detections, was 2
-  }
+  // if( orange_pixels_left < orange_pixels_right){
+  //   left_free_conf+= 1;
+  // } else {
+  //   right_free_conf += 1;  // be more cautious with positive obstacle detections, was 2
+  // }
 
   // VERBOSE_PRINT("left conf %u, right conf %u -----------", left_free_conf, right_free_conf);
 
@@ -215,9 +217,9 @@ void orange_avoider_guided_periodic(void)
   Bound(obstacle_free_confidence, 0, max_trajectory_confidence);
   float speed_sp = fminf(oag_max_speed, 0.2f * obstacle_free_confidence); // was 0.2f
 
-  VERBOSE_PRINT("speed: %f", speed_sp);
+  //VERBOSE_PRINT("speed: %f", speed_sp);
 
-
+  VERBOSE_PRINT("ARRAY: %u", orange_count);
 
   switch (navigation_state){
     case SAFE:
