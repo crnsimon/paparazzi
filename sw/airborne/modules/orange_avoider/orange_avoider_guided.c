@@ -60,11 +60,13 @@ float oag_floor_count_frac = 0.05f;       // floor detection threshold as a frac
 float oag_max_speed = 0.75f;               // max flight speed [m/s]  default = 0.5f
 float oag_heading_rate = RadOfDeg(45.f);  // heading change setpoint for avoidance [rad/s] def = 20
 
+int32_t num_strips = 5;
+
 // define and initialise global variables
 enum navigation_state_t navigation_state = SEARCH_FOR_SAFE_HEADING;   // current state in state machine
 int32_t color_count = 0;                // orange color count from color filter for obstacle detection
 int32_t floor_count = 0;                // green color count from color filter for floor detection
-int32_t orange_count = 0;                // green color count from color filter for floor detection
+int32_t orange_count[num_strips];               // green color count from color filter for floor detection
 int32_t black_count = 0;
 int32_t floor_centroid = 0;             // floor detector centroid in y direction (along the horizon)
 float avoidance_heading_direction = 0;  // heading change direction for avoidance [rad/s]
@@ -75,7 +77,7 @@ int16_t obstacle_free_confidence = 0;   // a measure of how certain we are that 
 int32_t heading_idx_oag = 5;
 
 
-int32_t num_strips = 5;
+
 
 // int32_t left_free_conf = 0; 
 // int32_t right_free_conf = 0; 
@@ -104,7 +106,8 @@ static void orange_detection_cb(uint8_t __attribute__((unused)) sender_id,
                                int32_t heading_idx,
                                int16_t __attribute__((unused)) extra)
 {
-  orange_count = quality;
+  // orange_count = quality;
+  memcpy(orange_count, quality, num_strips * sizeof(int32_t));
   // orange_pixels_left = leftpix; // This needs to be made such that it analyses 5 strips rather than splitting image in half
   // orange_pixels_right = rightpix; //Must be called again for each filter, shuold return pixel count for each strip and centroid
   // heading_idx_oag_orange = heading_idx;
@@ -219,7 +222,7 @@ void orange_avoider_guided_periodic(void)
 
   //VERBOSE_PRINT("speed: %f", speed_sp);
 
-  VERBOSE_PRINT("ARRAY: %u", orange_count);
+  VERBOSE_PRINT("ARRAY: %u", orange_count[0], orange_count[1]);
 
   switch (navigation_state){
     case SAFE:
